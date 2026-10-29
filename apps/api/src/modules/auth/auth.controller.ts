@@ -29,6 +29,7 @@ export class AuthController {
     const user = await this.auth.authenticate(input.email, input.password);
     const token = await this.jwt.signAsync(
       {
+        sid: user.sessionId,
         sub: user.userId,
         membershipId: user.membershipId,
         branchId: user.branchId,
@@ -49,7 +50,16 @@ export class AuthController {
   }
   @Post('logout')
   @HttpCode(200)
-  logout(@Res({ passthrough: true }) res: Response) {
+  async logout(
+    @Req() req: AuthRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const claims = await this.jwt
+      .verifyAsync<{ sid?: string; sub?: string }>(req.cookies?.session || '', {
+        audience: 'restaurantos-restaurant',
+      })
+      .catch(() => null);
+    await this.auth.revoke(claims);
     res.clearCookie('session', {
       path: '/',
       httpOnly: true,

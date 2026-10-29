@@ -2,7 +2,7 @@
 
 ## Prepared, not deployed
 
-The workspace has no configured hosting account/target or OpenAI credential. The available Sites runtime uses Cloudflare Workers and cannot run this required NestJS/PostgreSQL-TCP/BullMQ stack unchanged. Do not replace the required backend with a static imitation. Use a VM/container host with PostgreSQL/Redis networking instead. No new paid resources were provisioned.
+The workspace has no configured hosting account/target or OpenAI credential. The available Sites runtime uses Cloudflare Workers and cannot run the existing NestJS/PostgreSQL-TCP/BullMQ stack unchanged. Do not replace the existing backend with a static imitation. Use a VM/container host with PostgreSQL/Redis networking instead. No new paid resources were provisioned.
 
 ## Single-host deployment
 
@@ -43,3 +43,15 @@ The initial local source commit exists, but GitHub rejected its push because the
 The expanded Compose stack includes `super-admin` on localhost port 3001 with a runtime API proxy. HTTPS configuration requires **both** `PUBLIC_HOSTNAME` and `PUBLIC_PLATFORM_HOSTNAME`; use distinct hostnames and exact `WEB_ORIGIN` / `PLATFORM_ORIGIN`. Caddy routes the platform hostname to `super-admin:3001`. Host-only HttpOnly cookies and explicit JWT audiences separate the contexts. Existing restaurant cookies require fresh login after this migration.
 
 The platform seed is deliberately opt-in and rejects production. Password-only platform access is a nonproduction prototype, visibly labeled in the UI; production MFA/onboarding and restricted privileged access must be completed before real-customer use. This configuration has not been run with Docker or deployed over public HTTPS in this environment.
+
+## Recovery hardening supersedes earlier platform routing notes
+
+`pnpm demo:up` prepares demo-only configuration when absent and runs Compose with readiness waiting. It preserves existing `.env` and volumes; review configured targets before running. Docker execution remains unverified locally.
+
+Compose now uses explicit service environment allowlists: signing credentials belong to API, provider credentials to worker, database credentials to API/worker/initialization; frontends get only runtime API addressing. API signing/database/provider credentials are not inherited by web containers. Use host-managed secrets for real production deployment.
+
+The default public HTTPS configuration now serves only the restaurant hostname and returns 404 for platform paths. `PUBLIC_PLATFORM_HOSTNAME` is no longer required for that configuration. Super Admin is an opt-in local `platform` Compose profile; enable `PLATFORM_ADMIN_ENABLED=true` only for an explicitly restricted nonproduction environment. Do not expose password-only platform administration publicly. Earlier two-host forwarding instructions are historical and superseded.
+
+Restaurant tokens issued before the persisted-session change require fresh login. Logout now revokes the current restaurant session; expiry, active membership and suspension checks remain server-side. Database validation failures fail closed.
+
+AI eligibility must be verified for the actual service/customer location; moving the worker abroad is not sufficient proof. Current OpenAI guidance does not list Iran. No live key/provider acceptance or workaround is claimed.

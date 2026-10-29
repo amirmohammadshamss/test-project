@@ -1,7 +1,5 @@
 {$PUBLIC_HOSTNAME} {
+    @platform path /api/v1/platform/*
+    respond @platform 404
     reverse_proxy web:3000
-}
-
-{$PUBLIC_PLATFORM_HOSTNAME} {
-    reverse_proxy super-admin:3001
 }

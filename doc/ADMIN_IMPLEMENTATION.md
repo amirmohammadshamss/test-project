@@ -44,3 +44,7 @@ The first full `pnpm verify` passed formatting, ESLint, all app typechecks, 13 u
 Browser interaction, responsive/keyboard checks, Docker runtime, remote CI, real HTTPS deployment, live OpenAI output and video remain unverified. Docker/HTTPS/CI configuration includes Super Admin but is not evidence of deployment. Production MFA and secure production onboarding are not implemented. Both the UI and auth responses label platform access as a password-only prototype; real-customer privileged use is outside this delivery.
 
 Staff invitations, role-assignment UI, routine branch management, billing, impersonation and manual queue controls remain deferred. Audit history has no API update/delete endpoints; production retention/export policy remains an operational follow-up.
+
+## Recovery update
+
+Restaurant sessions now have database revocation as well. Cancelled order/items retain history and are excluded from operational totals. Manager order details link to the shared operational correction/cancellation controls. Super Admin remains available in local development; Compose requires the explicit `platform` profile and enabling platform APIs. Public HTTPS routing intentionally excludes privileged administration until production security is ready. See REMEDIATION_STATUS.md for latest verification; older browser-unavailable statements above describe the earlier implementation checkpoint.

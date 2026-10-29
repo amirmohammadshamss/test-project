@@ -38,6 +38,7 @@ export function assertTransition(actor: Actor, item: Item, next: ItemStatus) {
     PREPARING: 'READY',
     READY: 'SERVED',
     SERVED: null,
+    CANCELLED: null,
   };
   requireRole(
     actor,
@@ -48,6 +49,27 @@ export function assertTransition(actor: Actor, item: Item, next: ItemStatus) {
 }
 export function assertCompletable(order: OrderView) {
   assertOpen(order);
-  if (!order.items.length || order.items.some((i) => i.status !== 'SERVED'))
+  if (
+    !order.items.some((i) => i.status === 'SERVED') ||
+    order.items.some((i) => !['SERVED', 'CANCELLED'].includes(i.status))
+  )
     throw new BusinessError('ITEMS_NOT_SERVED');
+}
+
+export function assertCancellation(
+  actor: Actor,
+  order: OrderView,
+  item?: Item,
+) {
+  requireRole(actor, ['MANAGER', 'WAITER']);
+  assertOpen(order);
+  if (item) {
+    if (['SERVED', 'CANCELLED'].includes(item.status))
+      throw new BusinessError('CANCELLATION_NOT_ALLOWED');
+    if (item.status !== 'PENDING') requireRole(actor, ['MANAGER']);
+  } else {
+    if (order.items.some((i) => i.status === 'SERVED'))
+      throw new BusinessError('CANCELLATION_NOT_ALLOWED');
+    if (order.items.length) requireRole(actor, ['MANAGER']);
+  }
 }

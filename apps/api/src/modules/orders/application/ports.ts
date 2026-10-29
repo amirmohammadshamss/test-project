@@ -11,6 +11,7 @@ export interface RequestIdentity {
   payload: unknown;
 }
 export interface OrderTransaction {
+  cancel(order: OrderView, reason: string, item?: Item): Promise<OrderView>;
   lockOrder(id: string): Promise<OrderView>;
   lockTable(id: string): Promise<void>;
   findActiveOrder(tableId: string): Promise<OrderView | null>;

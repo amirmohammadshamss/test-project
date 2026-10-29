@@ -15,7 +15,7 @@ export class PageDto {
   @IsOptional() @IsString() @Length(0, 100) q?: string;
 }
 export class OrderPageDto extends PageDto {
-  @IsOptional() @IsIn(['OPEN', 'COMPLETED']) status?: string;
+  @IsOptional() @IsIn(['OPEN', 'COMPLETED', 'CANCELLED']) status?: string;
 }
 export class CategoryDto {
   @IsString() @Length(1, 80) name!: string;

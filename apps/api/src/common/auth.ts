@@ -27,13 +27,18 @@ export class SessionGuard implements CanActivate {
   constructor(@Inject(JwtService) private readonly jwt: JwtService) {}
   async canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest<AuthRequest>();
-    let claims: { sub: string; membershipId: string; branchId: string };
+    let claims: {
+      sub: string;
+      membershipId: string;
+      branchId: string;
+      sid: string;
+    };
     try {
       claims = await this.jwt.verifyAsync(req.cookies?.session || '', {
         audience: 'restaurantos-restaurant',
       });
       if (
-        ![claims.sub, claims.membershipId, claims.branchId].every(
+        ![claims.sub, claims.membershipId, claims.branchId, claims.sid].every(
           (x) =>
             typeof x === 'string' &&
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -45,6 +50,17 @@ export class SessionGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException('AUTH_REQUIRED');
     }
+    const session = await prisma.restaurantSession.findFirst({
+      where: {
+        id: claims.sid,
+        userId: claims.sub,
+        membershipId: claims.membershipId,
+        branchId: claims.branchId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+    if (!session) throw new UnauthorizedException('AUTH_REQUIRED');
     const membership = await prisma.membership.findFirst({
       where: {
         id: claims.membershipId,
@@ -61,6 +77,7 @@ export class SessionGuard implements CanActivate {
     if (membership.restaurant.status !== 'ACTIVE')
       throw new ForbiddenException('TENANT_SUSPENDED');
     req.actor = {
+      sessionId: claims.sid,
       userId: claims.sub,
       tenantId: membership.tenantId,
       branchId: claims.branchId,

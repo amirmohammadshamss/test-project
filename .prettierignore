@@ -8,3 +8,6 @@ doc/rfp.md
 .nx
 
 admin_pable.md
+
+test-results
+playwright-report

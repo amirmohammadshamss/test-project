@@ -22,7 +22,9 @@
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:integration && pnpm build",
     "nx": "nx",
     "graph": "nx graph",
-    "db:seed-platform": "nx run database:seed-platform"
+    "db:seed-platform": "nx run database:seed-platform",
+    "demo:up": "node scripts/demo-up.mjs",
+    "test:browser": "nx run workspace:test-browser"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.8",
@@ -41,6 +43,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.64.1",
     "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.5",
     "@types/jest": "^30.0.0",

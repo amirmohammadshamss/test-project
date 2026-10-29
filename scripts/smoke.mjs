@@ -59,8 +59,21 @@ const added = (
   )
 ).json;
 const ordered = added.items[0];
-const board = (await call('/kitchen/orders', 'GET', undefined, kitchen)).json;
-assert.ok(board.some((o) => o.id === order.id));
+let cursor = null,
+  found = false;
+do {
+  const board = (
+    await call(
+      '/kitchen/orders?limit=100' + (cursor ? '&cursor=' + cursor : ''),
+      'GET',
+      undefined,
+      kitchen,
+    )
+  ).json;
+  found ||= board.items.some((o) => o.id === order.id);
+  cursor = board.nextCursor;
+} while (cursor && !found);
+assert.ok(found);
 await call(
   `/kitchen/items/${ordered.id}/status`,
   'PATCH',

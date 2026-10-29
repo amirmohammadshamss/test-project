@@ -9,6 +9,7 @@ import {
   OrderUnitOfWork,
   RequestIdentity,
 } from '../application/ports';
+import { audit } from '../../../common/infrastructure/audit';
 import { BusinessError } from '../domain/rules';
 export function fingerprint(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -78,6 +79,67 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
         return order;
       };
       return work({
+        cancel: async (order, reason, item) => {
+          const now = new Date();
+          const targets = item
+            ? [item]
+            : order.items.filter((i) => i.status !== 'CANCELLED');
+          for (const target of targets)
+            await db.orderItem.update({
+              where: { id: target.id },
+              data: {
+                status: 'CANCELLED',
+                version: { increment: 1 },
+                cancelledAt: now,
+                cancelledBy: actor.userId,
+                cancellationReason: reason,
+                cancellationPriorStatus: target.status,
+              },
+            });
+          const terminal =
+            !item ||
+            order.items.every(
+              (i) => i.id === item.id || i.status === 'CANCELLED',
+            );
+          await db.order.update({
+            where: { id: order.id },
+            data: {
+              version: { increment: 1 },
+              ...(terminal
+                ? {
+                    status: 'CANCELLED',
+                    cancelledAt: now,
+                    cancelledBy: actor.userId,
+                    cancellationReason: reason,
+                    cancellationPriorStatus: order.status,
+                  }
+                : {}),
+            },
+          });
+          await db.orderEvent.create({
+            data: {
+              ...scoped,
+              orderId: order.id,
+              actorId: actor.userId,
+              action: terminal ? 'ORDER_CANCELLED' : 'ITEM_CANCELLED',
+            },
+          });
+          await audit(
+            db,
+            actor,
+            terminal ? 'ORDER_CANCELLED' : 'ITEM_CANCELLED',
+            item ? 'order-item' : 'order',
+            item?.id || order.id,
+            actor.tenantId,
+            reason,
+            {
+              orderId: order.id,
+              priorStatus: item?.status || order.status,
+              version: order.version + 1,
+            },
+          );
+          return read(order.id);
+        },
         lockOrder: async (id) => {
           const rows = await db.$queryRaw<
             { id: string }[]

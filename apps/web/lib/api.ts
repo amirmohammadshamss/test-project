@@ -55,6 +55,10 @@ export async function api<T>(
   return data as T;
 }
 export const errors: Record<string, string> = {
+  CANCELLATION_NOT_ALLOWED:
+    'این قلم سرو شده یا قبلاً لغو شده است؛ لغو مجاز نیست.',
+  REASON_REQUIRED: 'دلیل لغو را وارد کنید.',
+  INVALID_CURSOR: 'نشانی صفحه صف معتبر نیست؛ از اول صف شروع کنید.',
   TENANT_SUSPENDED:
     'دسترسی این رستوران موقتاً تعلیق شده است. با مدیر سامانه تماس بگیرید.',
   CATEGORY_INACTIVE: 'این دسته‌بندی غیرفعال است.',

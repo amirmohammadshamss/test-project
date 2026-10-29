@@ -5,6 +5,8 @@ async function proxy(
   context: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await context.params;
+  if (path[0]?.toLowerCase() === 'platform')
+    return Response.json({ error: { code: 'NOT_FOUND' } }, { status: 404 });
   if (path.some((segment) => !/^[a-zA-Z0-9_-]+$/.test(segment)))
     return Response.json({ error: { code: 'INVALID_PATH' } }, { status: 400 });
   const base = process.env.API_INTERNAL_URL || 'http://127.0.0.1:4000';

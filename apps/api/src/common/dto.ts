@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
@@ -47,4 +48,14 @@ export class ApproveDto {
   @IsString() @Length(0, 1000) description!: string;
   @IsString() @Length(1, 80) category!: string;
   @IsInt() @Min(1) @Max(100000000) priceToman!: number;
+}
+
+export class CancelDto {
+  @IsInt() @Min(1) version!: number;
+  @IsString() @Length(1, 500) reason!: string;
+}
+
+export class KitchenPageDto {
+  @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 50;
+  @IsOptional() @IsString() @Length(1, 500) cursor?: string;
 }

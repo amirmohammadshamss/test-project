@@ -92,6 +92,7 @@ const labels: Record<string, string> = {
   PREPARING: 'در حال آماده‌سازی',
   READY: 'آماده سرو',
   SERVED: 'سرو شده',
+  CANCELLED: 'لغو شده',
   OPEN: 'باز',
   COMPLETED: 'تکمیل شده',
   MANAGER: 'مدیر',
@@ -430,7 +431,7 @@ export default function RestaurantAdminPanel() {
       `میز ${number(o.table.number)}`,
       localDate(o.createdAt),
       <Badge>{labels[o.status]}</Badge>,
-      `${money(o.items.reduce((s, i) => s + i.quantity * i.priceRial, 0))} تومان`,
+      `${money(o.items.filter((i) => i.status !== 'CANCELLED').reduce((s, i) => s + i.quantity * i.priceRial, 0))} تومان`,
     ]);
   if (denied)
     return (
@@ -612,6 +613,7 @@ export default function RestaurantAdminPanel() {
                   <option value="">همه وضعیت‌ها</option>
                   <option value="OPEN">باز</option>
                   <option value="COMPLETED">تکمیل شده</option>
+                  <option value="CANCELLED">لغو شده</option>
                 </select>
               </div>
               <GridTable
@@ -634,6 +636,11 @@ export default function RestaurantAdminPanel() {
                       ثبت: {localDate(o.createdAt)} · آخرین تغییر:{' '}
                       {localDate(o.updatedAt)}
                     </p>
+                    {o.status === 'OPEN' && (
+                      <a className={secondary} href={'/?order=' + o.id}>
+                        اصلاح یا لغو سفارش در سالن
+                      </a>
+                    )}
                     <GridTable
                       headers={[
                         'غذا',
@@ -763,10 +770,9 @@ export default function RestaurantAdminPanel() {
                     <p className="my-4 font-semibold">
                       مجموع:{' '}
                       {money(
-                        o.items.reduce(
-                          (s, i) => s + i.quantity * i.priceRial,
-                          0,
-                        ),
+                        o.items
+                          .filter((i) => i.status !== 'CANCELLED')
+                          .reduce((s, i) => s + i.quantity * i.priceRial, 0),
                       )}{' '}
                       تومان
                     </p>
@@ -776,7 +782,10 @@ export default function RestaurantAdminPanel() {
                         busy ||
                         o.status !== 'OPEN' ||
                         !o.items.length ||
-                        o.items.some((i) => i.status !== 'SERVED')
+                        !o.items.some((i) => i.status === 'SERVED') ||
+                        o.items.some(
+                          (i) => !['SERVED', 'CANCELLED'].includes(i.status),
+                        )
                       }
                       onClick={() =>
                         mutate(() =>
@@ -828,10 +837,9 @@ export default function RestaurantAdminPanel() {
                     >
                       سفارش جاری ·{' '}
                       {money(
-                        t.orders[0].items.reduce(
-                          (s, i) => s + i.quantity * i.priceRial,
-                          0,
-                        ),
+                        t.orders[0].items
+                          .filter((i) => i.status !== 'CANCELLED')
+                          .reduce((s, i) => s + i.quantity * i.priceRial, 0),
                       )}{' '}
                       تومان
                     </Link>

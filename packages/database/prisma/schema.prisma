@@ -25,11 +25,13 @@ enum Role {
 }
 
 enum OrderStatus {
+  CANCELLED
   OPEN
   COMPLETED
 }
 
 enum ItemStatus {
+  CANCELLED
   PENDING
   PREPARING
   READY
@@ -82,14 +84,15 @@ model Branch {
 }
 
 model User {
-  id             String          @id @default(uuid()) @db.Uuid
-  email          String          @unique
-  name           String
-  passwordHash   String
-  active         Boolean         @default(true)
-  platformAdmin  PlatformAdmin?
-  memberships    Membership[]
-  adminAuditLogs AdminAuditLog[]
+  id                 String              @id @default(uuid()) @db.Uuid
+  email              String              @unique
+  name               String
+  passwordHash       String
+  active             Boolean             @default(true)
+  restaurantSessions RestaurantSession[]
+  platformAdmin      PlatformAdmin?
+  memberships        Membership[]
+  adminAuditLogs     AdminAuditLog[]
 }
 
 model Membership {
@@ -166,37 +169,45 @@ model MenuItem {
 }
 
 model Order {
-  id          String          @id @default(uuid()) @db.Uuid
-  tenantId    String          @db.Uuid
-  branchId    String          @db.Uuid
-  tableId     String          @db.Uuid
-  status      OrderStatus     @default(OPEN)
-  version     Int             @default(1)
-  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
-  completedAt DateTime?       @db.Timestamptz(3)
-  table       RestaurantTable @relation(fields: [tenantId, branchId, tableId], references: [tenantId, branchId, id])
-  items       OrderItem[]
-  events      OrderEvent[]
+  cancelledAt             DateTime?       @db.Timestamptz(3)
+  cancelledBy             String?         @db.Uuid
+  cancellationReason      String?
+  cancellationPriorStatus String?
+  id                      String          @id @default(uuid()) @db.Uuid
+  tenantId                String          @db.Uuid
+  branchId                String          @db.Uuid
+  tableId                 String          @db.Uuid
+  status                  OrderStatus     @default(OPEN)
+  version                 Int             @default(1)
+  createdAt               DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
+  completedAt             DateTime?       @db.Timestamptz(3)
+  table                   RestaurantTable @relation(fields: [tenantId, branchId, tableId], references: [tenantId, branchId, id])
+  items                   OrderItem[]
+  events                  OrderEvent[]
 
   @@unique([tenantId, branchId, id])
   @@index([tenantId, branchId, status])
 }
 
 model OrderItem {
-  id         String     @id @default(uuid()) @db.Uuid
-  tenantId   String     @db.Uuid
-  branchId   String     @db.Uuid
-  orderId    String     @db.Uuid
-  menuItemId String     @db.Uuid
-  name       String
-  priceRial  Int
-  quantity   Int
-  status     ItemStatus @default(PENDING)
-  version    Int        @default(1)
-  createdAt  DateTime   @default(now()) @db.Timestamptz(3)
-  order      Order      @relation(fields: [tenantId, branchId, orderId], references: [tenantId, branchId, id])
-  menuItem   MenuItem   @relation(fields: [tenantId, menuItemId], references: [tenantId, id])
+  cancelledAt             DateTime?  @db.Timestamptz(3)
+  cancelledBy             String?    @db.Uuid
+  cancellationReason      String?
+  cancellationPriorStatus String?
+  id                      String     @id @default(uuid()) @db.Uuid
+  tenantId                String     @db.Uuid
+  branchId                String     @db.Uuid
+  orderId                 String     @db.Uuid
+  menuItemId              String     @db.Uuid
+  name                    String
+  priceRial               Int
+  quantity                Int
+  status                  ItemStatus @default(PENDING)
+  version                 Int        @default(1)
+  createdAt               DateTime   @default(now()) @db.Timestamptz(3)
+  order                   Order      @relation(fields: [tenantId, branchId, orderId], references: [tenantId, branchId, id])
+  menuItem                MenuItem   @relation(fields: [tenantId, menuItemId], references: [tenantId, id])
 
   @@index([tenantId, branchId, status])
 }
@@ -318,5 +329,18 @@ model PlatformIdempotencyRecord {
   principal PlatformAdmin @relation(fields: [principalId], references: [id])
 
   @@unique([principalId, operation, key])
+  @@index([expiresAt])
+}
+
+model RestaurantSession {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  membershipId String    @db.Uuid
+  branchId     String    @db.Uuid
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt    DateTime  @db.Timestamptz(3)
+  revokedAt    DateTime? @db.Timestamptz(3)
+  user         User      @relation(fields: [userId], references: [id])
+
   @@index([expiresAt])
 }

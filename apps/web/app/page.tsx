@@ -5,6 +5,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { api, ApiError, errors, localDate, money, number } from '../lib/api';
 import type {
   Actor,
+  KitchenPage,
   DraftValue,
   MenuEntry,
   OrderView,
@@ -49,6 +50,7 @@ const statusLabels = {
   PREPARING: 'در حال آماده‌سازی',
   READY: 'آماده سرو',
   SERVED: 'سرو شده',
+  CANCELLED: 'لغو شده',
 };
 const roleLabels = {
   MANAGER: 'مدیر رستوران',
@@ -166,6 +168,9 @@ export default function RestaurantApp() {
   const [tables, setTables] = useState<Table[]>([]);
   const [menu, setMenu] = useState<Menu[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [kitchenCursor, setKitchenCursor] = useState('');
+  const [kitchenPage, setKitchenPage] = useState<KitchenPage | null>(null);
+  const [kitchenTrail, setKitchenTrail] = useState<string[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
@@ -175,41 +180,58 @@ export default function RestaurantApp() {
   const [online, setOnline] = useState(true);
   const [updated, setUpdated] = useState<Date | null>(null);
   const [search, setSearch] = useState('');
+  const [cancelTarget, setCancelTarget] = useState<{
+    id: string;
+    itemId?: string;
+    version: number;
+  } | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
   const [category, setCategory] = useState('all');
   const [filter, setFilter] = useState('all');
   const [editor, setEditor] = useState<Menu | 'new' | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
-  const scope = `${me?.userId || ''}:${me?.tenantId || ''}:${view}:${selected || ''}`;
+  const scope = `${me?.userId || ''}:${me?.tenantId || ''}:${me?.branchId || ''}:${view}:${selected || ''}:${kitchenCursor}`;
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
+  useEffect(() => {
+    setKitchenCursor('');
+    setKitchenTrail([]);
+    setCancelTarget(null);
+  }, [me?.userId, me?.branchId, view]);
+  useEffect(() => setCancelTarget(null), [selected]);
   const refresh = useCallback(async () => {
     if (!me) return;
     const [nextMenu, nextCategories, nextOrders, nextTables, nextOrder] =
       await Promise.all([
         api<Menu[]>('/menu/items'),
         api<Category[]>('/menu/categories'),
-        api<Order[]>(
-          me.role === 'KITCHEN' || view === 'kitchen'
-            ? '/kitchen/orders'
-            : '/orders',
-        ),
+        me.role === 'KITCHEN' || view === 'kitchen'
+          ? api<KitchenPage>(
+              '/kitchen/orders?limit=50' +
+                (kitchenCursor
+                  ? '&cursor=' + encodeURIComponent(kitchenCursor)
+                  : ''),
+            )
+          : api<Order[]>('/orders'),
         me.role === 'KITCHEN' ? Promise.resolve([]) : api<Table[]>('/tables'),
         selected ? api<Order>(`/orders/${selected}`) : Promise.resolve(null),
       ]);
     return {
       nextMenu,
       nextCategories,
-      nextOrders,
+      nextOrders: Array.isArray(nextOrders) ? nextOrders : nextOrders.items,
+      nextKitchenPage: Array.isArray(nextOrders) ? null : nextOrders,
       nextTables,
       nextOrder,
       scope,
     };
-  }, [me, view, selected, scope]);
+  }, [me, view, selected, scope, kitchenCursor]);
   const apply = useCallback((data: Awaited<ReturnType<typeof refresh>>) => {
     if (!data || data.scope !== scopeRef.current) return;
     setMenu(data.nextMenu);
     setCategories(data.nextCategories);
     setOrders(data.nextOrders);
+    setKitchenPage(data.nextKitchenPage);
     setTables(data.nextTables);
     setOrder(data.nextOrder);
     setUpdated(new Date());
@@ -223,6 +245,15 @@ export default function RestaurantApp() {
           `${user.userId}:${user.tenantId}:${user.branchId}`,
         );
         setMe(user);
+        const deepOrder = new URLSearchParams(window.location.search).get(
+          'order',
+        );
+        if (
+          deepOrder &&
+          /^[0-9a-f-]{36}$/i.test(deepOrder) &&
+          user.role !== 'KITCHEN'
+        )
+          setSelected(deepOrder);
         setView(user.role === 'KITCHEN' ? 'kitchen' : 'tables');
       })
       .catch(() => {})
@@ -311,6 +342,15 @@ export default function RestaurantApp() {
           `${user.userId}:${user.tenantId}:${user.branchId}`,
         );
         setMe(user);
+        const deepOrder = new URLSearchParams(window.location.search).get(
+          'order',
+        );
+        if (
+          deepOrder &&
+          /^[0-9a-f-]{36}$/i.test(deepOrder) &&
+          user.role !== 'KITCHEN'
+        )
+          setSelected(deepOrder);
         setView(user.role === 'KITCHEN' ? 'kitchen' : 'tables');
         setSelected(null);
       },
@@ -341,10 +381,9 @@ export default function RestaurantApp() {
   );
   const selectedTable = tables.find((t) => t.id === order?.tableId);
   const total =
-    order?.items.reduce(
-      (sum, item) => sum + item.quantity * item.priceRial,
-      0,
-    ) || 0;
+    order?.items
+      .filter((i) => i.status !== 'CANCELLED')
+      .reduce((sum, item) => sum + item.quantity * item.priceRial, 0) || 0;
   const navigate = (next: View) => {
     setView(next);
     setSelected(null);
@@ -806,10 +845,12 @@ export default function RestaurantApp() {
                               ) : (
                                 <span>
                                   {money(
-                                    activeOrder?.items.reduce(
-                                      (s, i) => s + i.quantity * i.priceRial,
-                                      0,
-                                    ) || 0,
+                                    activeOrder?.items
+                                      .filter((i) => i.status !== 'CANCELLED')
+                                      .reduce(
+                                        (s, i) => s + i.quantity * i.priceRial,
+                                        0,
+                                      ) || 0,
                                   )}{' '}
                                   <small>تومان</small>
                                 </span>
@@ -900,7 +941,7 @@ export default function RestaurantApp() {
                               disabled={
                                 busy ||
                                 !item.available ||
-                                order?.status === 'COMPLETED'
+                                order?.status !== 'OPEN'
                               }
                               onClick={() => add(item)}
                             >
@@ -950,6 +991,26 @@ export default function RestaurantApp() {
                       </div>
                       <div>
                         <Badge status={item.status} />
+                        {order.status === 'OPEN' &&
+                          !['SERVED', 'CANCELLED'].includes(item.status) &&
+                          (item.status === 'PENDING' ||
+                            me.role === 'MANAGER') && (
+                            <button
+                              type="button"
+                              {...ui('secondary')}
+                              disabled={busy}
+                              onClick={() => {
+                                setCancelTarget({
+                                  id: order.id,
+                                  itemId: item.id,
+                                  version: item.version,
+                                });
+                                setCancelReason('');
+                              }}
+                            >
+                              لغو قلم
+                            </button>
+                          )}
                         {item.status === 'PENDING' &&
                         order.status === 'OPEN' ? (
                           <div {...ui('quantity')}>
@@ -1013,8 +1074,11 @@ export default function RestaurantApp() {
                   disabled={
                     busy ||
                     !order?.items.length ||
-                    order?.items.some((i) => i.status !== 'SERVED') ||
-                    order?.status === 'COMPLETED'
+                    !order?.items.some((i) => i.status === 'SERVED') ||
+                    order?.items.some(
+                      (i) => !['SERVED', 'CANCELLED'].includes(i.status),
+                    ) ||
+                    order?.status !== 'OPEN'
                   }
                   onClick={() =>
                     act(
@@ -1031,10 +1095,104 @@ export default function RestaurantApp() {
                   }
                 >
                   <Icon name="check" />
-                  {order?.status === 'COMPLETED'
+                  {order?.status !== 'OPEN'
                     ? 'سفارش بسته شده'
                     : 'تکمیل سفارش و آزاد کردن میز'}
                 </button>
+                {order?.status === 'OPEN' &&
+                  (me.role === 'MANAGER' || !order.items.length) &&
+                  !order.items.some((i) => i.status === 'SERVED') && (
+                    <button
+                      {...ui('secondary')}
+                      disabled={busy}
+                      onClick={() => {
+                        setCancelTarget({
+                          id: order.id,
+                          version: order.version,
+                        });
+                        setCancelReason('');
+                      }}
+                    >
+                      لغو سفارش و آزاد کردن میز
+                    </button>
+                  )}
+                {cancelTarget && (
+                  <form
+                    className="mt-3 grid gap-3 rounded-lg border border-red-200 bg-red-50 p-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void act(
+                        () =>
+                          api(
+                            `/orders/${cancelTarget.id}${cancelTarget.itemId ? '/items/' + cancelTarget.itemId : ''}/cancel`,
+                            'POST',
+                            {
+                              version: cancelTarget.version,
+                              reason: cancelReason,
+                            },
+                          ),
+                        () => {
+                          setCancelTarget(null);
+                          setNotice(
+                            'لغو ثبت شد؛ تغییر غذای در حال پخت را به آشپزخانه اطلاع دهید.',
+                          );
+                        },
+                      );
+                    }}
+                  >
+                    <label>
+                      دلیل لغو
+                      <textarea
+                        aria-label="دلیل لغو"
+                        className="w-full rounded border bg-white p-2"
+                        value={cancelReason}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                        required
+                        maxLength={500}
+                      />
+                    </label>
+                    <p>
+                      لغو به معنی بازپرداخت نیست. لغو غذای در حال آماده‌سازی یا
+                      آماده را به آشپزخانه اطلاع دهید.
+                    </p>
+                    <button
+                      {...ui('secondary')}
+                      disabled={busy || !cancelReason.trim()}
+                    >
+                      تأیید لغو
+                    </button>
+                    <button
+                      type="button"
+                      {...ui('secondary')}
+                      onClick={() => setCancelTarget(null)}
+                    >
+                      انصراف
+                    </button>
+                    {error && <p role="alert">{error}</p>}
+                    <button
+                      type="button"
+                      {...ui('secondary')}
+                      onClick={() => {
+                        if (!order) return;
+                        const target = cancelTarget.itemId
+                          ? order.items.find(
+                              (i) => i.id === cancelTarget.itemId,
+                            )
+                          : order;
+                        if (
+                          target &&
+                          window.confirm('وضعیت تازه را بررسی کرده‌اید؟')
+                        )
+                          setCancelTarget({
+                            ...cancelTarget,
+                            version: target.version,
+                          });
+                      }}
+                    >
+                      استفاده از نسخه تازه با حفظ دلیل
+                    </button>
+                  </form>
+                )}
                 <p {...ui('ticket-note')}>
                   بستن سفارش پس از سرو تمام اقلام ممکن است.
                   <br />
@@ -1045,6 +1203,50 @@ export default function RestaurantApp() {
           )}
           {view === 'kitchen' && !selected && (
             <div {...ui('kitchen-board')}>
+              <div className="col-span-full flex flex-wrap items-center gap-3 rounded-lg border bg-white p-3">
+                <span>
+                  نمایش {number(orders.length)} سفارش از{' '}
+                  {number(kitchenPage?.total || 0)} سفارش فعال؛ این صفحه تمام صف
+                  نیست.
+                </span>
+                <button
+                  {...ui('secondary')}
+                  disabled={!kitchenTrail.length || busy}
+                  onClick={() => {
+                    setKitchenCursor(kitchenTrail.at(-1) || '');
+                    setKitchenTrail((x) => x.slice(0, -1));
+                  }}
+                >
+                  قبلی
+                </button>
+                <button
+                  {...ui('secondary')}
+                  disabled={!kitchenPage?.hasMore || busy}
+                  onClick={() => {
+                    if (kitchenPage?.nextCursor) {
+                      setKitchenTrail((x) => [...x, kitchenCursor]);
+                      setKitchenCursor(kitchenPage.nextCursor);
+                    }
+                  }}
+                >
+                  ادامه صف
+                </button>
+                <button
+                  {...ui('secondary')}
+                  onClick={() => {
+                    setKitchenCursor('');
+                    setKitchenTrail([]);
+                  }}
+                >
+                  اول صف / بررسی سفارش تازه
+                </button>
+                <span>
+                  {updated
+                    ? 'آخرین دریافت: ' + localDate(updated)
+                    : 'در حال دریافت'}
+                  {!online ? ' — اطلاعات قدیمی است؛ ارتباط قطع شده' : ''}
+                </span>
+              </div>
               {(['PENDING', 'PREPARING', 'READY'] as const).map((status) => {
                 const items = orders.flatMap((o) =>
                   o.items
@@ -1205,7 +1407,9 @@ export default function RestaurantApp() {
                   <span>{number(o.items.length)} قلم</span>
                   <strong>
                     {money(
-                      o.items.reduce((s, i) => s + i.quantity * i.priceRial, 0),
+                      o.items
+                        .filter((i) => i.status !== 'CANCELLED')
+                        .reduce((s, i) => s + i.quantity * i.priceRial, 0),
                     )}{' '}
                     <small>تومان</small>
                   </strong>

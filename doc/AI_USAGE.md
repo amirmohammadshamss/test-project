@@ -39,3 +39,11 @@ User-requested Tailwind-only migration: Codex converted the custom selectors to 
 ## Admin implementation
 
 Codex implemented the additive schema/migration, manager administration APIs/screens, distinct platform authentication and sessions, tenant provisioning/lifecycle, audit reads, real monitoring adapters, Nx Super Admin app and regression tests. Generated code was checked through formatting, lint, TypeScript, real PostgreSQL/Redis tests and builds. No live model output, browser walkthrough, public deployment or production MFA implementation is claimed.
+
+## Assessment remediation assistance
+
+Codex researched official PostgreSQL, OWASP, Playwright, Docker and provider-eligibility guidance, then implemented cancellation transactions/UI, kitchen pagination, persisted restaurant-session revocation, per-service credential configuration and real Chromium tests. A generated test wrongly assumed every kitchen order was on page one; pagination-aware assertions corrected it. A later offline browser test depended on another test's fixtures; it was made independent. These fixes are recorded as generated-code errors, not product failures hidden by mocks.
+
+The user supplied the assessment and explicitly requested Nx, Tailwind, admin scope and remediation. Codex proposed the cancellation/locking/session policies and generated their implementation; the record does not establish that those architecture details were independently authored by the human. No human interview, measured AI time saving or live-provider success is invented.
+
+Rejected simply increasing/removing the kitchen limit: explicit bounded navigation and a visible total address discoverability without unbounded polling. Rejected treating a foreign deployment region as sufficient proof an AI provider may serve Iranian users. Legitimate provider eligibility, a server credential, live quality and cost evaluation remain open.

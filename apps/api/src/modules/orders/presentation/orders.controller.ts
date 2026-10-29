@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Query,
   Headers,
   Inject,
   Param,
@@ -21,6 +22,8 @@ import {
 } from '../../../common/auth';
 import {
   AddItemDto,
+  CancelDto,
+  KitchenPageDto,
   CompleteDto,
   CreateOrderDto,
   UpdateItemDto,
@@ -95,6 +98,38 @@ export class OrdersController {
       key || '',
     );
   }
+  @Post('orders/:id/cancel') @Roles('MANAGER', 'WAITER') cancel(
+    @Req() req: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() input: CancelDto,
+    @Headers('idempotency-key') key: string,
+  ) {
+    return this.orders.cancel(
+      req.actor,
+      id,
+      input.version,
+      input.reason,
+      key || '',
+    );
+  }
+  @Post('orders/:id/items/:itemId/cancel')
+  @Roles('MANAGER', 'WAITER')
+  cancelItem(
+    @Req() req: AuthRequest,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body() input: CancelDto,
+    @Headers('idempotency-key') key: string,
+  ) {
+    return this.orders.cancel(
+      req.actor,
+      id,
+      input.version,
+      input.reason,
+      key || '',
+      itemId,
+    );
+  }
   @Post('orders/:id/complete')
   @Roles('MANAGER', 'WAITER')
   complete(
@@ -107,8 +142,8 @@ export class OrdersController {
   }
   @Get('kitchen/orders')
   @Roles('MANAGER', 'KITCHEN')
-  kitchen(@Req() req: AuthRequest) {
-    return this.queries.list(req.actor, true);
+  kitchen(@Req() req: AuthRequest, @Query() q: KitchenPageDto) {
+    return this.queries.kitchen(req.actor, q.limit, q.cursor);
   }
   @Patch('kitchen/items/:itemId/status')
   @Roles('MANAGER', 'KITCHEN')

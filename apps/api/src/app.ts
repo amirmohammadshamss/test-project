@@ -86,6 +86,13 @@ export async function createApp() {
   });
   const limits = new Map<string, { count: number; reset: number }>();
   app.use((req: AuthRequest, res: Response, next: NextFunction) => {
+    if (
+      req.path.toLowerCase().startsWith('/api/v1/platform/') &&
+      (process.env.PLATFORM_ADMIN_ENABLED === 'false' ||
+        (process.env.NODE_ENV === 'production' &&
+          process.env.PLATFORM_ADMIN_ENABLED !== 'true'))
+    )
+      return res.status(404).json({ error: { code: 'NOT_FOUND' } });
     req.requestId = randomUUID();
     res.setHeader('X-Request-Id', req.requestId);
     const started = Date.now();
@@ -112,7 +119,7 @@ export async function createApp() {
         req.get('X-CSRF-Protection') !== '1' ||
         (req.get('Origin') &&
           req.get('Origin') !==
-            (req.path.startsWith('/api/v1/platform/')
+            (req.path.toLowerCase().startsWith('/api/v1/platform/')
               ? platformOrigin
               : allowedOrigin)) ||
         req.get('Sec-Fetch-Site') === 'cross-site'
@@ -122,10 +129,11 @@ export async function createApp() {
           .json({ error: { code: 'CSRF_REJECTED', requestId: req.requestId } });
     }
     const isPlatform =
-      req.path.startsWith('/api/v1/platform/') &&
+      req.path.toLowerCase().startsWith('/api/v1/platform/') &&
       !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
-    const isLogin = req.path.endsWith('/auth/login');
-    const isAi = req.path.includes('/ai/') && req.method === 'POST';
+    const isLogin = req.path.toLowerCase().endsWith('/auth/login');
+    const isAi =
+      req.path.toLowerCase().includes('/ai/') && req.method === 'POST';
     if (isLogin || isAi || isPlatform) {
       const now = Date.now();
       for (const [key, entry] of limits)

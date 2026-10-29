@@ -41,13 +41,29 @@ export class AuthService {
       throw new UnauthorizedException('INVALID_CREDENTIALS');
     if (membership.restaurant.status !== 'ACTIVE')
       throw new ForbiddenException('TENANT_SUSPENDED');
+    const session = await prisma.restaurantSession.create({
+      data: {
+        userId: user.id,
+        membershipId: membership.id,
+        branchId: membership.branches[0].branchId,
+        expiresAt: new Date(Date.now() + 8 * 3600000),
+      },
+    });
     return {
+      sessionId: session.id,
       userId: user.id,
       membershipId: membership.id,
       branchId: membership.branches[0].branchId,
       role: membership.role,
       name: user.name,
     };
+  }
+  async revoke(claims: { sid?: string; sub?: string } | null) {
+    if (claims?.sid && claims.sub)
+      await prisma.restaurantSession.updateMany({
+        where: { id: claims.sid, userId: claims.sub, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
   }
   async me(actor: Actor) {
     const [user, restaurant, branch] = await Promise.all([

@@ -87,10 +87,9 @@ export class PrismaRestaurantAdminRepository extends RestaurantAdminRepository {
           readyItems: count('READY'),
           recentOrders: recent.map((o) => ({
             ...o,
-            totalRial: o.items.reduce(
-              (sum, i) => sum + i.quantity * i.priceRial,
-              0,
-            ),
+            totalRial: o.items
+              .filter((i) => i.status !== 'CANCELLED')
+              .reduce((sum, i) => sum + i.quantity * i.priceRial, 0),
           })),
           branchId: a.branchId,
           checkedAt: new Date(),
@@ -102,7 +101,9 @@ export class PrismaRestaurantAdminRepository extends RestaurantAdminRepository {
   async orders(a: Actor, q: PageQuery) {
     const where: Prisma.OrderWhereInput = {
       ...scope(a),
-      ...(q.status ? { status: q.status as 'OPEN' | 'COMPLETED' } : {}),
+      ...(q.status
+        ? { status: q.status as 'OPEN' | 'COMPLETED' | 'CANCELLED' }
+        : {}),
       ...(q.q
         ? {
             OR: [
@@ -161,10 +162,9 @@ export class PrismaRestaurantAdminRepository extends RestaurantAdminRepository {
     return page(
       items.map((o) => ({
         ...o,
-        totalRial: o.items.reduce(
-          (sum, i) => sum + i.quantity * i.priceRial,
-          0,
-        ),
+        totalRial: o.items
+          .filter((i) => i.status !== 'CANCELLED')
+          .reduce((sum, i) => sum + i.quantity * i.priceRial, 0),
       })),
       total,
       q,

@@ -117,8 +117,17 @@ describe('HTTP security and workflow with real PostgreSQL', () => {
       where: { email: 'waiter@demo.restaurantos.test' },
       include: { memberships: true },
     });
+    const testSession = await prisma.restaurantSession.create({
+      data: {
+        userId: user.id,
+        membershipId: user.memberships[0].id,
+        branchId: branchA2,
+        expiresAt: new Date(Date.now() + 60000),
+      },
+    });
     const token = await app.get(JwtService).signAsync(
       {
+        sid: testSession.id,
         sub: user.id,
         membershipId: user.memberships[0].id,
         branchId: branchA2,
@@ -277,10 +286,18 @@ describe('HTTP security and workflow with real PostgreSQL', () => {
       where: { id: menuId },
       data: { priceRial: originalPrice + 10000 },
     });
-    const kitchen = await api('kitchen').get('/kitchen/orders').expect(200);
-    expect(kitchen.body.some((o: { id: string }) => o.id === order.id)).toBe(
-      true,
-    );
+    let cursor: string | null = null,
+      found = false;
+    do {
+      const kitchen: request.Response = await api('kitchen')
+        .get('/kitchen/orders?limit=100' + (cursor ? '&cursor=' + cursor : ''))
+        .expect(200);
+      found ||= kitchen.body.items.some(
+        (o: { id: string }) => o.id === order.id,
+      );
+      cursor = kitchen.body.nextCursor;
+    } while (cursor && !found);
+    expect(found).toBe(true);
     await api('kitchen')
       .patch(`/kitchen/items/${item.id}/status`)
       .send({ version: 1, status: 'PREPARING' })
@@ -384,8 +401,17 @@ test('idempotency replay is branch-scoped even for a user with both branch membe
       .set('Idempotency-Key', sharedKey)
       .send({ tableId })
       .expect(201);
+    const testSession = await prisma.restaurantSession.create({
+      data: {
+        userId: user.id,
+        membershipId: membership.id,
+        branchId: branchA2,
+        expiresAt: new Date(Date.now() + 60000),
+      },
+    });
     const token = await app.get(JwtService).signAsync(
       {
+        sid: testSession.id,
         sub: user.id,
         membershipId: membership.id,
         branchId: branchA2,

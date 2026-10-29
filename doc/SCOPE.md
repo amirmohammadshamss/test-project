@@ -45,3 +45,11 @@ Payments, accounting, inventory, suppliers, payroll, loyalty, reservations, deli
 Use phase gates and final checklist in `PLAN.md`, plus RFP sections 24 and 27. Prioritize real PostgreSQL concurrency/isolation tests and Redis-backed worker tests over coverage percentages. A mock provider is only a deterministic test double, never evidence of live OpenAI integration.
 
 Risks: six hours is aggressive; runtime/tooling installation, hosting credentials, regional service access, worker recovery, cookie/CSRF configuration and tenant filtering require verification. RLS is deferred; application isolation and composite FKs are the baseline. Record limitations and unverified deployment rather than claiming full completion.
+
+## Dated recovery addendum — 29 October 2026
+
+The preceding scope records the original implementation agreement; it is not rewritten to conceal omissions. Review against the user's original open-ended assessment identified missing safe cancellation, hidden kitchen backlog and restaurant logout revocation. The original brief does not mandate NestJS/Next.js; the existing stack and later detailed RFP are separate provenance.
+
+The implemented recovery policy adds terminal, audited cancellation rather than deletion: waiter/manager may cancel empty orders and pending lines; manager approval is needed after preparation begins, and served items remain immutable. Cancelling the final remaining line frees the table. Operational totals exclude cancelled lines while snapshots/history remain. Whole-order cancellation with served items, partial-quantity cancellation, refunds and payment adjustments are excluded. Staff must directly tell the kitchen about cancellations after preparation starts; polling is not acknowledgement.
+
+The kitchen exposes bounded pages, counts and navigation; restaurant logout revokes persisted sessions. These are subsequent corrections, not features claimed to have existed in the pre-build agreement. No new interviews or verified Iranian customer deployment are claimed.

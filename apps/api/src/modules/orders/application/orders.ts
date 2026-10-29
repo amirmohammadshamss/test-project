@@ -4,6 +4,7 @@ import type {
 } from '../../../../../../packages/shared/src/contracts';
 import {
   assertCompletable,
+  assertCancellation,
   assertOpen,
   assertTransition,
   assertVersion,
@@ -14,6 +15,36 @@ import {
 import { OrderUnitOfWork } from './ports';
 export class Orders {
   constructor(private readonly uow: OrderUnitOfWork) {}
+  cancel(
+    actor: Actor,
+    id: string,
+    version: number,
+    reason: string,
+    key: string,
+    itemId?: string,
+  ) {
+    requireRole(actor, ['MANAGER', 'WAITER']);
+    if (!reason.trim() || reason.trim().length > 500)
+      throw new BusinessError('REASON_REQUIRED', 400);
+    return this.uow.run(
+      actor,
+      {
+        operation: `order.cancel.${id}.${itemId || 'all'}`,
+        key,
+        payload: { version, reason, itemId: itemId || null },
+      },
+      async (tx) => {
+        const order = await tx.lockOrder(id);
+        const item = itemId
+          ? order.items.find((i) => i.id === itemId)
+          : undefined;
+        if (itemId && !item) throw new BusinessError('NOT_FOUND', 404);
+        assertVersion(item ? item.version : order.version, version);
+        assertCancellation(actor, order, item);
+        return tx.cancel(order, reason.trim(), item);
+      },
+    );
+  }
   create(actor: Actor, tableId: string, key: string) {
     requireRole(actor, ['MANAGER', 'WAITER']);
     return this.uow.run(

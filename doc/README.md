@@ -6,7 +6,7 @@ Persian-first restaurant operations MVP implemented from [rfp.md](./rfp.md). Ori
 
 ## Current status
 
-Local PostgreSQL migrations/seeding, the NestJS API/worker, Next.js production build, and automated tests have been exercised. Browser layout/interactions, Docker runtime, remote GitHub Actions, live OpenAI responses, public HTTPS hosting, and the required video are **not verified/delivered**. The admin expansion adds routed manager and separate platform interfaces; see [ADMIN_IMPLEMENTATION.md](./ADMIN_IMPLEMENTATION.md) for setup and current verification. See [VERIFICATION.md](./VERIFICATION.md). This is not a claim of full RFP acceptance.
+Local PostgreSQL migrations/seeding, the NestJS API/worker, Next.js production build, and automated tests have been exercised. Real Chromium staff-workflow and kitchen pagination tests now pass, including responsive overflow checks. Docker runtime, remote GitHub Actions, live AI responses, public HTTPS hosting, and the required recording remain **unverified/incomplete**. The admin expansion adds routed manager and separate platform interfaces; see [ADMIN_IMPLEMENTATION.md](./ADMIN_IMPLEMENTATION.md) for setup and current verification. See [VERIFICATION.md](./VERIFICATION.md). This is not a claim of full RFP acceptance.
 
 ## Requirements
 
@@ -14,12 +14,11 @@ Node.js 22+, pnpm 10.32.1, PostgreSQL 16, Redis 7+; alternatively Docker with Co
 
 ## Run with Docker Compose
 
-1. Copy `.env.example` to `.env`.
-2. Set a long random `JWT_SECRET`, a URL-safe `POSTGRES_PASSWORD`, and a separate 12+ character `SEED_DEMO_PASSWORD`. Placeholders must be replaced. Set `OPENAI_API_KEY` only on the server if available.
-3. Run `docker compose up --build`.
-4. Open `http://localhost:3000`.
+Run `pnpm demo:up` from the repository root on a Docker-enabled machine. It generates an ignored demo `.env` only when absent, preserves existing configuration/data, starts Compose and waits for readiness. If `.env` already exists, replace placeholder values and confirm its targets first. Open `http://localhost:3000`. Docker runtime remains unverified here because Docker is unavailable.
 
-Compose initializes the database, runs migrations and an idempotent demo seed, then starts web/API/worker. PostgreSQL and Redis are internal; web port 3000 and Super Admin port 3001 are exposed on localhost. The API does not depend on Redis readiness. If Redis stops after startup, core ordering continues; AI requests remain persisted for worker recovery. Stopping with `docker compose down` preserves named database volumes. Do not delete volumes if their data is needed.
+Manual alternative: copy `.env.example`, configure strong secrets and a 12+ character demo password, then run `docker compose up --build`. Do not enable a live paid AI provider until service eligibility and request-budget controls are established.
+
+Compose initializes the database, runs migrations and an idempotent demo seed, then starts web/API/worker. PostgreSQL and Redis are internal; only web port 3000 is exposed by default. Super Admin is an opt-in `platform` profile on port 3001 and platform APIs are disabled by default in production. Frontends do not receive API signing, database or provider credentials. The API does not depend on Redis readiness. If Redis stops after startup, core ordering continues; AI requests remain persisted for worker recovery. Stopping with `docker compose down` preserves named database volumes. Do not delete volumes if their data is needed.
 
 `COOKIE_SECURE=false` is for localhost HTTP only. Use `true` for HTTPS deployments. Do not expose this demo with unchanged example values.
 
@@ -104,7 +103,7 @@ The current local seed password is `RestaurantOS-Demo-2026!`. This is deliberate
 4. Return to waiter, mark ready items served, then complete the order. The table becomes available.
 5. As manager, edit menu entries or submit a Persian description through the menu assistant. Review/edit all generated fields and explicitly approve publication.
 
-Closing an order is operational completion, not payment. Empty orders cannot close; item cancellation/deletion is intentionally absent. If an empty order was opened accidentally, add/service the intended items; a future cancellation workflow is needed for normal production use.
+Closing an order is operational completion, not payment. Empty orders can be cancelled with a reason by waiter/manager. Pending lines can be cancelled by waiter/manager; preparing/ready lines require a manager and direct kitchen communication. Served lines cannot be cancelled. Cancelling the last remaining line releases the table; retained cancelled lines are excluded from operational totals. Partial-line quantity cancellation, refunds and accounting remain unsupported.
 
 ## Checks
 
@@ -117,6 +116,7 @@ pnpm typecheck
 pnpm test
 pnpm test:integration
 pnpm build
+pnpm test:browser
 ```
 
 `pnpm test:e2e` runs the same integration suite, which includes the complete waiter/kitchen API E2E path. `pnpm verify` runs all checks in sequence. GitHub Actions supplies PostgreSQL/Redis service containers and fails on any mandatory check. No production provider credentials are used by automated tests.
@@ -137,13 +137,13 @@ Every order mutation locks the scoped parent order before reading/changing invar
 
 Critical mutations require `Idempotency-Key` (8–128 ASCII letters/digits/underscore/hyphen). Scope is tenant + actor + operation + active branch + key. A transaction advisory lock serializes simultaneous absent-key requests, then the mutation and serialized result commit together. Same payload replays; different payload conflicts. Failed transactions leave no committed claim. Calls wait for the first request within database/transaction limits; timeouts can be retried with the same key. Retention is seven days; worker reconciliation cleans expired records, and expired records are ignored/replaced on reuse. Deduplication is not guaranteed after retention expires.
 
-AI requests are persisted before enqueue. A five-second reconciler re-enqueues unfinished work with stable IDs; persisted leases/attempts and conditional updates fence duplicate result application. Redis/provider calls are at-least-once, not exactly-once, and duplicate provider cost is possible after crashes. Three persisted attempts, bounded backoff, 20-second provider timeout, strict validation, and transactional human approval prevent duplicated menu publication. Reconciliation batch size is 100. The API does not import/connect BullMQ, so optional-service outages do not prevent order persistence.
+AI requests are persisted before enqueue. A five-second reconciler re-enqueues unfinished work with stable IDs; persisted leases/attempts and conditional updates fence duplicate result application. Redis/provider calls are at-least-once, not exactly-once, and duplicate provider cost is possible after crashes. Three persisted attempts, bounded backoff, 20-second provider timeout, strict validation, and transactional human approval prevent duplicated menu publication. Reconciliation batch size is 100. Core ordering has no Redis startup dependency; the optional platform monitoring adapter connects to BullMQ only for an explicit monitoring request.
 
 ## API and security
 
 Base path `/api/v1`; routes follow RFP section 10. Menu updates send a full editable representation rather than a sparse patch. Category listing is `/menu/categories`. All writes, including login/logout, require `X-CSRF-Protection: 1`; critical order/AI writes also require `Idempotency-Key`. JSON DTOs reject extra fields. Non-simple CSRF headers, strict-origin checks, SameSite cookies, restricted CORS and server guards protect cookie-based sessions.
 
-JWT lifetime is eight hours; membership/branch/role are rechecked on each request. Logout clears the browser cookie; it does not revoke a previously copied JWT, which remains valid until expiry unless membership is removed. Add revocation/session storage before stricter production requirements. Limits are currently process-local and IP-based; behind the Next proxy users can share the same bucket. Distributed/user-aware rate limiting and proxy configuration need production review.
+JWT lifetime is eight hours; membership/branch/role are rechecked on each request. Restaurant sessions are persisted and checked on every protected request. Logout revokes the current session before clearing its cookie; copied tokens then fail. Legacy tokens without a session ID require a fresh login. Other devices remain signed in. Limits are currently process-local and IP-based; behind the Next proxy users can share the same bucket. Distributed/user-aware rate limiting and proxy configuration need production review.
 
 Money is integer IRR, with whole-toman inputs and explicit 10:1 conversion; invalid fractions are rejected. UTC timestamps display in `Asia/Tehran`. Table occupancy derives from open orders.
 
@@ -152,3 +152,7 @@ Liveness: `GET /api/v1/health`. Database readiness: `GET /api/v1/health/ready`. 
 ## Deployment and handover
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md), [HANDOVER.md](./HANDOVER.md), [DECISIONS.md](./DECISIONS.md), [AI_USAGE.md](./AI_USAGE.md), and [WALKTHROUGH.md](./WALKTHROUGH.md). No public deployment URL or recording is claimed.
+
+## Recovery verification and assessment status
+
+See [ASSESSMENT_FIX_PLAN.md](./ASSESSMENT_FIX_PLAN.md) and [REMEDIATION_STATUS.md](./REMEDIATION_STATUS.md). Browser tests require a dedicated `TEST_DATABASE_URL` ending in `/restaurantos_test`, migrated schema, generated Prisma client and Chromium (`pnpm exec playwright install chromium`). `pnpm test:browser` builds API/web and starts isolated test servers on 4002/3002; do not run another server on those ports. It creates fictional fixtures in the test database. Kitchen pagination returns an envelope, default 50/max 100 orders, with explicit backlog navigation and stale-data indicators.

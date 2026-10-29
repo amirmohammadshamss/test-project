@@ -2,16 +2,8 @@ name: restaurantos
 x-app: &app
   build: .
   image: restaurantos-local
-  env_file: .env
   environment: &environment
     NODE_ENV: production
-    DATABASE_URL: postgresql://restaurantos:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/restaurantos
-    REDIS_URL: redis://redis:6379
-    JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
-    SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:?Set SEED_DEMO_PASSWORD in .env}
-    WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
-    PLATFORM_ORIGIN: ${PLATFORM_ORIGIN:-http://localhost:3001}
-    COOKIE_SECURE: ${COOKIE_SECURE:-false}
   init: true
 services:
   postgres:
@@ -37,11 +29,24 @@ services:
       retries: 15
   initialize:
     <<: *app
+    environment:
+      <<: *environment
+      DATABASE_URL: postgresql://restaurantos:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/restaurantos
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:?Set SEED_DEMO_PASSWORD}
     command: [sh, -c, 'pnpm db:migrate && pnpm db:seed']
     depends_on:
       postgres: { condition: service_healthy }
   api:
     <<: *app
+    environment:
+      <<: *environment
+      DATABASE_URL: postgresql://restaurantos:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/restaurantos
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      PLATFORM_ORIGIN: ${PLATFORM_ORIGIN:-http://localhost:3001}
+      PLATFORM_ADMIN_ENABLED: ${PLATFORM_ADMIN_ENABLED:-false}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     command: [node, dist/apps/api/src/main.js]
     depends_on:
       initialize: { condition: service_completed_successfully }
@@ -59,6 +64,12 @@ services:
     restart: unless-stopped
   worker:
     <<: *app
+    environment:
+      <<: *environment
+      DATABASE_URL: postgresql://restaurantos:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/restaurantos
+      REDIS_URL: redis://redis:6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
     command: [node, dist/apps/worker/src/main.js]
     depends_on:
       initialize: { condition: service_completed_successfully }
@@ -75,6 +86,7 @@ services:
       api: { condition: service_healthy }
     restart: unless-stopped
   super-admin:
+    profiles: [platform]
     <<: *app
     environment:
       <<: *environment

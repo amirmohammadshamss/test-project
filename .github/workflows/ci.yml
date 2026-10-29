@@ -53,6 +53,17 @@ jobs:
       - run: pnpm test
       - run: pnpm test:integration
       - run: pnpm build
+      - name: Install Chromium for isolated browser tests
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Verify real staff browser workflow
+        run: pnpm test:browser
+      - name: Retain browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failures
+          path: test-results
+          retention-days: 3
   compose:
     name: Docker Compose smoke
     needs: verify
@@ -76,8 +87,6 @@ jobs:
         run: docker compose up --build -d
       - name: Wait for database-backed web readiness
         run: node scripts/wait-for-http.mjs http://localhost:3000/api/v1/health/ready
-      - name: Confirm Super Admin frontend responds
-        run: node scripts/wait-for-http.mjs http://localhost:3001/login
       - name: Complete waiter and kitchen flow through Docker stack
         run: node --env-file=.env scripts/smoke.mjs
       - name: Retry after committed-response loss and PostgreSQL restart

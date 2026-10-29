@@ -10,6 +10,12 @@ Source: [rfp.md](./rfp.md). Execution checklist updated during implementation. C
 
 **Execution order:** Complete phases 1–8 sequentially. Add critical tests alongside their implementation; phase 7 consolidates verification. Preserve data integrity, tenant security, usable ordering, and reproducibility before adding polish.
 
+## Assessment remediation — current next work
+
+The original assessment review identified recovery, kitchen visibility, restaurant-session revocation and delivery-evidence gaps. Follow [ASSESSMENT_FIX_PLAN.md](./ASSESSMENT_FIX_PLAN.md) for the researched F0–F7 checklist, proposed cancellation rules, API/schema impact, concurrency/browser acceptance tests and external dependencies. Its remediation sequence takes priority over further feature expansion; earlier checked tasks retain their historical meaning. Core cancellation, kitchen visibility and revocable restaurant-session fixes are implemented and checked locally. See [REMEDIATION_STATUS.md](./REMEDIATION_STATUS.md) for evidence and remaining gates.
+
+The new estimate is **11–19 additional active hours**, separate from the original six-hour cap. Do not reset that cap or conceal unknown/overrun time. Start with policy/provider/deployment feasibility, then cancellation, kitchen visibility and sessions; finish with browser/live-AI/HTTPS evidence and submission documents.
+
 ## Execution status
 
 - [x] Phases 1–4: original scope, workspace/database, authentication/isolation, and core ordering/kitchen API implemented; critical automated checks pass.

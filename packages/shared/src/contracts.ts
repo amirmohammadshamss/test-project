@@ -1,11 +1,13 @@
 export type Role = 'MANAGER' | 'WAITER' | 'KITCHEN';
-export type ItemStatus = 'PENDING' | 'PREPARING' | 'READY' | 'SERVED';
+export type ItemStatus =
+  'CANCELLED' | 'PENDING' | 'PREPARING' | 'READY' | 'SERVED';
 export interface Actor {
   userId: string;
   tenantId: string;
   branchId: string;
   role: Role;
   requestId?: string;
+  sessionId?: string;
 }
 export interface MenuEntry {
   id: string;
@@ -32,7 +34,7 @@ export interface OrderView {
   tenantId: string;
   branchId: string;
   tableId: string;
-  status: 'OPEN' | 'COMPLETED';
+  status: 'OPEN' | 'COMPLETED' | 'CANCELLED';
   version: number;
   items: Item[];
   createdAt: Date | string;
@@ -49,4 +51,21 @@ export interface PlatformPrincipal {
   adminId: string;
   sessionId: string;
   requestId?: string;
+}
+
+export interface KitchenPage {
+  items: OrderView[];
+  total: number;
+  nextCursor: string | null;
+  hasMore: boolean;
+  checkedAt: string | Date;
+}
+export function orderTotal(
+  items: { quantity: number; priceRial: number; status: ItemStatus }[],
+) {
+  return items.reduce(
+    (sum, item) =>
+      sum + (item.status === 'CANCELLED' ? 0 : item.quantity * item.priceRial),
+    0,
+  );
 }

@@ -70,6 +70,20 @@
           "target": "generate"
         }
       ]
+    },
+    "test-browser": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --env-file-if-exists=.env node_modules/@playwright/test/cli.js test"
+      },
+      "cache": false,
+      "parallelism": false,
+      "dependsOn": [
+        {
+          "projects": ["api", "web"],
+          "target": "build"
+        }
+      ]
     }
   }
 }

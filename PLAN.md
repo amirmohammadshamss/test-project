@@ -145,13 +145,13 @@ Actual phase times were not separately instrumented. `TIME_LOG.md` records obser
 - [x] Run PostgreSQL-backed Jest/Supertest tests for all six RFP isolation scenarios: cross-tenant order read, menu mutation, known order ID, AI result access, manager-only actions, and unauthorized branch access.
 - [x] Verify concurrent order creation produces one active order; concurrent valid item additions plus kitchen updates preserve all accepted changes.
 - [x] Verify stale incompatible updates return 409 and invalid transitions are rejected without partial writes.
-- [x] Verify duplicate keys, changed payloads, concurrent same-key requests, timeout/retry, and replay after application restart do not repeat committed mutations.
+- [x] Verify duplicate keys, changed payloads, concurrent same-key requests, timeout/retry, and replay after application restart do not repeat committed mutations. A separate fault smoke check also verified actual post-commit response loss and controlled PostgreSQL restart with zero duplicates.
 - [x] Verify idempotency expiration/cleanup behavior and document the retention guarantee.
 - [x] Run Redis-backed queue tests for duplicate delivery, retries, permanent failures, tenant ownership, and recovery after enqueue interruption.
 - [x] Run an automated API E2E test: waiter login → order → item addition → kitchen login → view item → change preparation status → confirm persisted state.
 - [x] Finish CI: frozen-lockfile install, formatting, lint, typecheck, unit/integration/E2E tests, and production build; initialize test databases predictably.
 - [x] Run required checks locally and record unavailable checks in `VERIFICATION.md`.
-- [ ] Push source and inspect a successful remote GitHub Actions run; no remote run is claimed.
+- [ ] Push source and inspect a successful remote GitHub Actions run; GitHub currently rejects workflow uploads because the credential lacks `workflow` access. Initial local commit and configured Docker CI checks are ready.
 - [x] Verify cookie/CSRF behavior, sanitized API errors, secret exclusions, Persian RTL HTML and full order flow through the production HTTP proxy.
 - [ ] Verify responsive layout, polling and interactions in a connected browser on desktop/mobile/tablet.
 

@@ -30,4 +30,4 @@ The owner can review original business rules in SCOPE.md and explicit architectu
 
 Real PostgreSQL/Redis tests cover isolation, concurrency, idempotency, state transitions, duplicate queue delivery, bounded retries and recovery. Unit tests cover domain rules, provider handling and browser-client retry metadata. Formatting, lint, type checks and the production build pass. A local HTTP smoke test exercises the built web proxy and complete waiter/kitchen path, including missing-provider failure. Final counts and remaining verification gaps are recorded in VERIFICATION.md.
 
-Browser interactions, Docker runtime, public deployment, remote CI and the required video remain unverified/incomplete. No security, capacity or delivery guarantee beyond tested behavior is claimed.
+A subsequent fault smoke check also verified actual HTTP response loss after commit and controlled PostgreSQL restart, with no duplicate orders/items. Browser interactions, Docker runtime, public deployment, remote CI and the required video remain unverified/incomplete. No security, capacity or delivery guarantee beyond tested behavior is claimed.

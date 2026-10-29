@@ -1,0 +1,24 @@
+services:
+  api:
+    environment:
+      WEB_ORIGIN: https://${PUBLIC_HOSTNAME:?Set PUBLIC_HOSTNAME to your DNS hostname}
+      COOKIE_SECURE: 'true'
+  web:
+    environment:
+      WEB_ORIGIN: https://${PUBLIC_HOSTNAME:?Set PUBLIC_HOSTNAME to your DNS hostname}
+      COOKIE_SECURE: 'true'
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:?Set PUBLIC_HOSTNAME to your DNS hostname}
+    ports: ['80:80', '443:443', '443:443/udp']
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web: { condition: service_started }
+    restart: unless-stopped
+volumes:
+  caddy-data:
+  caddy-config:

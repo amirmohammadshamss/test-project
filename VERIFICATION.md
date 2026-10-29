@@ -15,9 +15,9 @@ Execution date: 2026-10-29. See `TIME_LOG.md` for checkpoints.
 - Docker image/Compose runtime: Docker executable resolves to an absent Docker application in this environment.
 - Live OpenAI call: no `OPENAI_API_KEY` configured. Automated provider tests use explicitly labeled test doubles.
 - Hosted HTTPS deployment: no host/account configured. No live URL is claimed.
-- Remote GitHub Actions: workflow authored, no remote run confirmed.
+- Remote GitHub Actions: workflow authored, but GitHub rejected the push because the existing token lacks `workflow` permission. No remote run is claimed.
 - Video: script supplied; required recorded video not produced.
-- Actual network disconnect and PostgreSQL server-restart fault injection: replay and application-restart behavior tested, not a physical network/server crash exercise.
+- Abrupt host/power-loss crash recovery is not tested. Controlled PostgreSQL restart and actual post-commit HTTP response loss are verified below.
 - Load/capacity benchmarks, RLS, immediate JWT revocation, full staff-management UI and browser E2E tests are outside the implemented slice and must not be described as delivered.
 
 ## Final local checks
@@ -26,3 +26,11 @@ Execution date: 2026-10-29. See `TIME_LOG.md` for checkpoints.
 - `node --env-file=.env scripts/smoke.mjs` passed against the built local stack, checking Persian RTL HTML, the runtime web/API proxy, HttpOnly/SameSite cookies, role sessions, waiter ordering, kitchen preparation, serving/completion, and persisted `AI_NOT_CONFIGURED` failure without disabling core readiness.
 - `.env`, generated Next type declarations and TypeScript build caches are ignored by Git.
 - Final worker lifecycle check passed: **21 integration tests**, plus the unchanged **13 unit/client/provider tests**, for **34 passing tests** total. Formatting, lint and backend compilation were rerun after the worker lifecycle change and passed. The frontend production build is unchanged from the passing full run.
+
+## Continued delivery checks
+
+- Initial source commit: `c2085ba`; pre-commit Husky/lint-staged checks executed successfully. GitHub rejected push of the CI workflow because the existing token lacks `workflow` scope. Source remains local until authentication is updated.
+- The fault smoke test discarded two real HTTP responses after upstream commits, restarted only the isolated local PostgreSQL cluster, replayed the original request keys, verified zero duplicate orders/items, and completed the order. This tests response-loss recovery and controlled database restart, not power-loss durability.
+- Added a Docker Compose CI job for complete startup, built-stack waiter/kitchen flow, committed-response-loss/database-restart replay, ordering while Redis is stopped, and HTTPS configuration validation. It is not verified remotely yet.
+- Added `docker-compose.https.yml` and `Caddyfile`; the override forces HTTPS origin/Secure cookies, persists certificate state, and keeps web port 3000 on localhost. YAML parses and lint/format checks pass; actual container/certificate verification remains pending.
+- Railway was identified as an optional compatible host integration; it is not connected. No hosting resources were created.

@@ -17,7 +17,7 @@ Node.js 22+, pnpm 10.32.1, PostgreSQL 16, Redis 7+; alternatively Docker with Co
 3. Run `docker compose up --build`.
 4. Open `http://localhost:3000`.
 
-Compose initializes the database, runs migrations and an idempotent demo seed, then starts web/API/worker. PostgreSQL and Redis are internal; only web port 3000 is exposed. The API does not depend on Redis readiness. If Redis stops after startup, core ordering continues; AI requests remain persisted for worker recovery. Stopping with `docker compose down` preserves named database volumes. Do not delete volumes if their data is needed.
+Compose initializes the database, runs migrations and an idempotent demo seed, then starts web/API/worker. PostgreSQL and Redis are internal; only web port 3000 is exposed on localhost. The API does not depend on Redis readiness. If Redis stops after startup, core ordering continues; AI requests remain persisted for worker recovery. Stopping with `docker compose down` preserves named database volumes. Do not delete volumes if their data is needed.
 
 `COOKIE_SECURE=false` is for localhost HTTP only. Use `true` for HTTPS deployments. Do not expose this demo with unchanged example values.
 
@@ -85,6 +85,8 @@ pnpm build
 `pnpm test:e2e` runs the same integration suite, which includes the complete waiter/kitchen API E2E path. `pnpm verify` runs all checks in sequence. GitHub Actions supplies PostgreSQL/Redis service containers and fails on any mandatory check. No production provider credentials are used by automated tests.
 
 For an HTTP smoke check against the running local stack, run `node --env-file=.env scripts/smoke.mjs`. It creates and completes one demo order and submits an AI request, so use demo data. It is an HTTP check, not browser verification.
+
+`scripts/fault-smoke.mjs` deliberately discards successful upstream responses, retries the same request keys, and verifies there is only one order/item. It completes the resulting demo order. With `FAULT_RESTART_COMPOSE_POSTGRES=1`, it also restarts the disposable Compose PostgreSQL service. Run only against a demo/test stack; the local controlled-restart variant accepts the isolated `/tmp/restaurantos-pg` cluster explicitly. See VERIFICATION.md for the observed result.
 
 ## Architecture and correctness
 

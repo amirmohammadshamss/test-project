@@ -90,26 +90,28 @@ const closed = (
   )
 ).json;
 assert.equal(closed.status, 'COMPLETED');
-const draft = (
-  await call(
-    '/ai/menu-drafts',
-    'POST',
-    { input: 'چیزبرگر مخصوص با گوشت، قیمت ۴۵۰ هزار تومان' },
-    manager,
-  )
-).json;
-if (!process.env.OPENAI_API_KEY) {
-  let state;
-  for (let i = 0; i < 30; i++) {
-    state = (
-      await call(`/ai/menu-drafts/${draft.id}`, 'GET', undefined, manager)
-    ).json;
-    if (state.status === 'FAILED') break;
-    await new Promise((resolve) => setTimeout(resolve, 500));
+if (process.env.SMOKE_SKIP_AI !== '1') {
+  const draft = (
+    await call(
+      '/ai/menu-drafts',
+      'POST',
+      { input: 'چیزبرگر مخصوص با گوشت، قیمت ۴۵۰ هزار تومان' },
+      manager,
+    )
+  ).json;
+  if (!process.env.OPENAI_API_KEY) {
+    let state;
+    for (let i = 0; i < 30; i++) {
+      state = (
+        await call(`/ai/menu-drafts/${draft.id}`, 'GET', undefined, manager)
+      ).json;
+      if (state.status === 'FAILED') break;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    assert.equal(state.status, 'FAILED');
+    assert.equal(state.errorCode, 'AI_NOT_CONFIGURED');
+    assert.equal((await call('/health/ready')).json.database, 'ready');
   }
-  assert.equal(state.status, 'FAILED');
-  assert.equal(state.errorCode, 'AI_NOT_CONFIGURED');
-  assert.equal((await call('/health/ready')).json.database, 'ready');
 }
 console.log(
   JSON.stringify({
@@ -122,7 +124,9 @@ console.log(
       'table order',
       'kitchen preparation',
       'served completion',
-      'missing-provider graceful failure',
+      ...(process.env.SMOKE_SKIP_AI === '1'
+        ? []
+        : ['AI request and missing-provider handling']),
     ],
     uiBrowserVerified: false,
     liveProviderVerified: false,

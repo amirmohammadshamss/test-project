@@ -19,3 +19,5 @@ Phase boundaries and active minutes were not separately instrumented. Checkpoint
 No browser/host/provider credentials were inferred or fabricated. Outstanding requirements remain unchecked in PLAN.md.
 
 - 08:55 UTC: final lifecycle integration tests (21), formatting, lint and backend compilation passed. Total tested scenarios: 34. Conservative wall elapsed upper bound at this checkpoint: 61 minutes, including waits/interruption; precise active minutes are unavailable.
+
+- 09:13 UTC: continued delivery work. Initial source committed locally; GitHub rejected workflow upload due to missing credential scope. Prepared Docker startup/outage/durability CI and HTTPS configuration. Actual post-commit response-loss plus controlled PostgreSQL restart smoke passed with no duplicates. Hosting integration/authentication remain external dependencies.

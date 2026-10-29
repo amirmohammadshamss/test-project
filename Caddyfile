@@ -1,3 +1,7 @@
 {$PUBLIC_HOSTNAME} {
     reverse_proxy web:3000
 }
+
+{$PUBLIC_PLATFORM_HOSTNAME} {
+    reverse_proxy super-admin:3001
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "super-admin",
+  "sourceRoot": "apps/super-admin/app",
+  "projectType": "application",
+  "tags": ["type:app", "platform:web"],
+  "implicitDependencies": ["shared"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "next build --webpack",
+        "cwd": "apps/super-admin"
+      },
+      "outputs": ["{projectRoot}/.next"],
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "env": "NODE_ENV"
+        }
+      ]
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "next typegen && tsc --noEmit",
+        "cwd": "apps/super-admin"
+      },
+      "outputs": [
+        "{projectRoot}/next-env.d.ts",
+        "{projectRoot}/.next/types",
+        "{projectRoot}/tsconfig.tsbuildinfo"
+      ]
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "next dev -p 3001",
+        "cwd": "apps/super-admin"
+      },
+      "cache": false,
+      "continuous": true
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "next start -p 3001",
+        "cwd": "apps/super-admin"
+      },
+      "cache": false,
+      "continuous": true
+    }
+  }
+}

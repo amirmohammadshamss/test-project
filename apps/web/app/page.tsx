@@ -547,6 +547,14 @@ export default function RestaurantApp() {
       </aside>
       <main {...ui('main')}>
         <header {...ui('topbar')}>
+          {me.role === 'MANAGER' && (
+            <a
+              href="/dashboard"
+              className="rounded-lg bg-[#edf4ee] px-3 py-2 text-xs text-[#255a46]"
+            >
+              پنل مدیریت
+            </a>
+          )}
           <span>
             فضای کاری <span {...ui('topbar-separator')}>/</span> {me.restaurant}
           </span>
@@ -1272,6 +1280,7 @@ function MenuEditor({
     const data = new FormData(e.currentTarget);
     onSave({
       name: data.get('name'),
+      ...(initial ? { version: initial.version } : {}),
       description: data.get('description'),
       categoryId: data.get('categoryId'),
       priceToman: Number(data.get('priceToman')),

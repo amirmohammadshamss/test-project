@@ -35,3 +35,7 @@ A subsequent fault smoke check also verified actual HTTP response loss after com
 User-requested Nx migration: Codex added explicit project/task configuration, safe caching boundaries, CI cache restoration and non-root Docker build ownership. The existing compiler and test tools were preserved. Nx project discovery, dependency graph, full verification and repeated-build cache reuse were checked locally.
 
 User-requested Tailwind-only migration: Codex converted the custom selectors to reusable Tailwind utilities/data variants and removed custom CSS rules/keyframes. Tailwind accepted and extracted all 911 candidates; utility composition was checked for size/alignment/padding/color overrides. No browser was connected, so visual parity is not claimed.
+
+## Admin implementation
+
+Codex implemented the additive schema/migration, manager administration APIs/screens, distinct platform authentication and sessions, tenant provisioning/lifecycle, audit reads, real monitoring adapters, Nx Super Admin app and regression tests. Generated code was checked through formatting, lint, TypeScript, real PostgreSQL/Redis tests and builds. No live model output, browser walkthrough, public deployment or production MFA implementation is claimed.

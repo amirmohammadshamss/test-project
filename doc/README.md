@@ -1,10 +1,12 @@
 # RestaurantOS / نارنج
 
+All project documentation is in `doc/`. Run the commands below from the repository root, one directory above this file.
+
 Persian-first restaurant operations MVP implemented from [rfp.md](./rfp.md). Original scope is in [SCOPE.md](./SCOPE.md); execution checklist is [PLAN.md](./PLAN.md).
 
 ## Current status
 
-Local PostgreSQL migrations/seeding, the NestJS API/worker, Next.js production build, and automated tests have been exercised. Browser layout/interactions, Docker runtime, remote GitHub Actions, live OpenAI responses, public HTTPS hosting, and the required video are **not verified/delivered**. Automated verification currently covers 34 tests. See [VERIFICATION.md](./VERIFICATION.md). This is not a claim of full RFP acceptance.
+Local PostgreSQL migrations/seeding, the NestJS API/worker, Next.js production build, and automated tests have been exercised. Browser layout/interactions, Docker runtime, remote GitHub Actions, live OpenAI responses, public HTTPS hosting, and the required video are **not verified/delivered**. The admin expansion adds routed manager and separate platform interfaces; see [ADMIN_IMPLEMENTATION.md](./ADMIN_IMPLEMENTATION.md) for setup and current verification. See [VERIFICATION.md](./VERIFICATION.md). This is not a claim of full RFP acceptance.
 
 ## Requirements
 
@@ -17,7 +19,7 @@ Node.js 22+, pnpm 10.32.1, PostgreSQL 16, Redis 7+; alternatively Docker with Co
 3. Run `docker compose up --build`.
 4. Open `http://localhost:3000`.
 
-Compose initializes the database, runs migrations and an idempotent demo seed, then starts web/API/worker. PostgreSQL and Redis are internal; only web port 3000 is exposed on localhost. The API does not depend on Redis readiness. If Redis stops after startup, core ordering continues; AI requests remain persisted for worker recovery. Stopping with `docker compose down` preserves named database volumes. Do not delete volumes if their data is needed.
+Compose initializes the database, runs migrations and an idempotent demo seed, then starts web/API/worker. PostgreSQL and Redis are internal; web port 3000 and Super Admin port 3001 are exposed on localhost. The API does not depend on Redis readiness. If Redis stops after startup, core ordering continues; AI requests remain persisted for worker recovery. Stopping with `docker compose down` preserves named database volumes. Do not delete volumes if their data is needed.
 
 `COOKIE_SECURE=false` is for localhost HTTP only. Use `true` for HTTPS deployments. Do not expose this demo with unchanged example values.
 
@@ -41,6 +43,7 @@ Start these processes in separate terminals from the repository root:
 node --env-file=.env dist/apps/api/src/main.js
 node --env-file=.env dist/apps/worker/src/main.js
 pnpm nx start web
+pnpm nx start super-admin
 ```
 
 For source development, `pnpm dev` uses Nx to compile the backend once and run API/worker Node file watchers plus Next dev. Re-run `pnpm nx build api` (or `pnpm nx build worker`) after backend edits to regenerate watched files. The explicit TypeScript compilation preserves Nest's DTO metadata; esbuild-only startup would skip that metadata.
@@ -49,7 +52,7 @@ The task environment uses a temporary pnpm installation. If pnpm is not on PATH,
 
 ## Nx workspace
 
-Nx 24.0.2 orchestrates the existing pnpm workspace. Projects are `api`, `worker`, `web`, `database`, `shared`, and the root `workspace` tooling project. Each has explicit `project.json` configuration; `nx.json` defines shared inputs and caching. No Nx Cloud account is required or connected.
+Nx 24.0.2 orchestrates the existing pnpm workspace. Projects are `api`, `worker`, `web`, `super-admin`, `database`, `shared`, and the root `workspace` tooling project. Each has explicit `project.json` configuration; `nx.json` defines shared inputs and caching. No Nx Cloud account is required or connected.
 
 ```sh
 pnpm nx show projects

@@ -7,6 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum AuditActorType {
+  RESTAURANT_USER
+  PLATFORM_ADMIN
+  ANONYMOUS
+}
+
 enum Role {
   MANAGER
   WAITER
@@ -34,19 +45,35 @@ enum DraftStatus {
 }
 
 model Restaurant {
-  id          String       @id @default(uuid()) @db.Uuid
-  name        String
-  branches    Branch[]
-  memberships Membership[]
-  categories  Category[]
-  menuItems   MenuItem[]
-  drafts      AiDraft[]
+  id                   String                 @id @default(uuid()) @db.Uuid
+  name                 String
+  status               TenantStatus           @default(ACTIVE)
+  version              Int                    @default(1)
+  provisioningKey      String?                @unique
+  primaryContact       String                 @default("")
+  contactEmail         String                 @default("")
+  phone                String                 @default("")
+  address              String                 @default("")
+  currencyPresentation String                 @default("TOMAN")
+  timezone             String                 @default("Asia/Tehran")
+  createdAt            DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime               @default(now()) @updatedAt @db.Timestamptz(3)
+  branches             Branch[]
+  memberships          Membership[]
+  categories           Category[]
+  menuItems            MenuItem[]
+  drafts               AiDraft[]
+  adminAuditLogs       AdminAuditLog[]
+  lifecycleEvents      TenantLifecycleEvent[]
 }
 
 model Branch {
   id         String             @id @default(uuid()) @db.Uuid
   tenantId   String             @db.Uuid
   name       String
+  active     Boolean            @default(true)
+  createdAt  DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime           @default(now()) @updatedAt @db.Timestamptz(3)
   restaurant Restaurant         @relation(fields: [tenantId], references: [id])
   access     BranchMembership[]
   tables     RestaurantTable[]
@@ -55,11 +82,14 @@ model Branch {
 }
 
 model User {
-  id           String       @id @default(uuid()) @db.Uuid
-  email        String       @unique
-  name         String
-  passwordHash String
-  memberships  Membership[]
+  id             String          @id @default(uuid()) @db.Uuid
+  email          String          @unique
+  name           String
+  passwordHash   String
+  active         Boolean         @default(true)
+  platformAdmin  PlatformAdmin?
+  memberships    Membership[]
+  adminAuditLogs AdminAuditLog[]
 }
 
 model Membership {
@@ -67,6 +97,7 @@ model Membership {
   tenantId   String             @db.Uuid
   userId     String             @db.Uuid
   role       Role
+  active     Boolean            @default(true)
   restaurant Restaurant         @relation(fields: [tenantId], references: [id])
   user       User               @relation(fields: [userId], references: [id])
   branches   BranchMembership[]
@@ -92,6 +123,8 @@ model RestaurantTable {
   branchId String  @db.Uuid
   number   Int
   seats    Int     @default(4)
+  active   Boolean @default(true)
+  version  Int     @default(1)
   branch   Branch  @relation(fields: [tenantId, branchId], references: [tenantId, id])
   orders   Order[]
 
@@ -100,11 +133,14 @@ model RestaurantTable {
 }
 
 model Category {
-  id         String     @id @default(uuid()) @db.Uuid
-  tenantId   String     @db.Uuid
-  name       String
-  restaurant Restaurant @relation(fields: [tenantId], references: [id])
-  items      MenuItem[]
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String     @db.Uuid
+  name         String
+  active       Boolean    @default(true)
+  displayOrder Int        @default(0)
+  version      Int        @default(1)
+  restaurant   Restaurant @relation(fields: [tenantId], references: [id])
+  items        MenuItem[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, name])
@@ -119,6 +155,8 @@ model MenuItem {
   priceRial     Int
   active        Boolean     @default(true)
   available     Boolean     @default(true)
+  version       Int         @default(1)
+  updatedAt     DateTime    @default(now()) @updatedAt @db.Timestamptz(3)
   restaurant    Restaurant  @relation(fields: [tenantId], references: [id])
   category      Category    @relation(fields: [tenantId, categoryId], references: [tenantId, id])
   orderedItems  OrderItem[]
@@ -135,6 +173,7 @@ model Order {
   status      OrderStatus     @default(OPEN)
   version     Int             @default(1)
   createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
   completedAt DateTime?       @db.Timestamptz(3)
   table       RestaurantTable @relation(fields: [tenantId, branchId, tableId], references: [tenantId, branchId, id])
   items       OrderItem[]
@@ -208,4 +247,76 @@ model AiDraft {
 
   @@unique([tenantId, menuItemId])
   @@index([tenantId, status])
+}
+
+model PlatformAdmin {
+  id                 String                      @id @default(uuid()) @db.Uuid
+  userId             String                      @unique @db.Uuid
+  active             Boolean                     @default(true)
+  createdAt          DateTime                    @default(now()) @db.Timestamptz(3)
+  user               User                        @relation(fields: [userId], references: [id])
+  sessions           PlatformSession[]
+  idempotencyRecords PlatformIdempotencyRecord[]
+}
+
+model PlatformSession {
+  id        String        @id @default(uuid()) @db.Uuid
+  adminId   String        @db.Uuid
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime      @db.Timestamptz(3)
+  revokedAt DateTime?     @db.Timestamptz(3)
+  admin     PlatformAdmin @relation(fields: [adminId], references: [id])
+
+  @@index([adminId, expiresAt])
+}
+
+model AdminAuditLog {
+  id           String         @id @default(uuid()) @db.Uuid
+  actorId      String?        @db.Uuid
+  actorType    AuditActorType
+  tenantId     String?        @db.Uuid
+  action       String
+  resourceType String
+  resourceId   String?
+  requestId    String
+  outcome      String         @default("SUCCESS")
+  reason       String?
+  metadata     Json?
+  createdAt    DateTime       @default(now()) @db.Timestamptz(3)
+
+  actor  User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  tenant Restaurant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([actorType, createdAt])
+}
+
+model TenantLifecycleEvent {
+  id         String        @id @default(uuid()) @db.Uuid
+  tenantId   String        @db.Uuid
+  actorId    String        @db.Uuid
+  fromStatus TenantStatus?
+  toStatus   TenantStatus
+  reason     String?
+  createdAt  DateTime      @default(now()) @db.Timestamptz(3)
+
+  tenant Restaurant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, createdAt])
+}
+
+model PlatformIdempotencyRecord {
+  id          String   @id @default(uuid()) @db.Uuid
+  principalId String   @db.Uuid
+  operation   String
+  key         String
+  fingerprint String
+  response    Json
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt   DateTime @db.Timestamptz(3)
+
+  principal PlatformAdmin @relation(fields: [principalId], references: [id])
+
+  @@unique([principalId, operation, key])
+  @@index([expiresAt])
 }

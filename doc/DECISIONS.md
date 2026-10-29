@@ -13,3 +13,7 @@
 9. **Tailwind-only styling (user-requested):** all visual rules use Tailwind utilities; shared groups and data-attribute variants preserve repeated components and state selectors. Alternative: retain a custom stylesheet or use CSS modules. Trade-off: utility strings are longer, so they are centralized in a small helper; `tailwind-merge` keeps composed overrides predictable. The global CSS file now contains only Tailwind's import.
 
 Reconsider decisions 1 and 5 for the reasons above; they are accepted trade-offs, not claims of proven mistakes.
+
+## Admin expansion — 29 October 2026
+
+Added separate Restaurant Admin and platform modules over the existing modular monolith, plus an independent Nx Super Admin frontend. Platform identities/sessions are separate from restaurant memberships and both JWT contexts have explicit audiences. Tenant registration uses a normalized unique provisioning reference; initial-manager emails must be new accounts. Provisioning, lifecycle, idempotency result and audit writes are atomic. Category/menu/order locking preserves deactivation and historical-price invariants. Policies and prototype security limits are recorded in ADMIN_SCOPE.md.

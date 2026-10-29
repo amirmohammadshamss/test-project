@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { prisma } from '../../../../../packages/database/src/client';
 import {
   hashPassword,
@@ -14,7 +18,13 @@ export class AuthService {
       include: {
         memberships: {
           orderBy: { id: 'asc' },
-          include: { branches: { orderBy: { id: 'asc' } } },
+          include: {
+            branches: {
+              where: { branch: { active: true } },
+              orderBy: { id: 'asc' },
+            },
+            restaurant: { select: { status: true } },
+          },
         },
       },
     });
@@ -22,9 +32,15 @@ export class AuthService {
       password,
       user?.passwordHash || (await dummyHash),
     );
-    const membership = user?.memberships.find((m) => m.branches.length);
-    if (!user || !valid || !membership)
+    const membership =
+      user?.memberships.find(
+        (m) =>
+          m.active && m.branches.length && m.restaurant.status === 'ACTIVE',
+      ) || user?.memberships.find((m) => m.active && m.branches.length);
+    if (!user || !user.active || !valid || !membership)
       throw new UnauthorizedException('INVALID_CREDENTIALS');
+    if (membership.restaurant.status !== 'ACTIVE')
+      throw new ForbiddenException('TENANT_SUSPENDED');
     return {
       userId: user.id,
       membershipId: membership.id,

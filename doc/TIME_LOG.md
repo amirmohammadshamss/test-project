@@ -25,3 +25,5 @@ No browser/host/provider credentials were inferred or fabricated. Outstanding re
 - 09:30 UTC: user requested Nx. Added Nx 24.0.2, six explicit projects, cached deterministic tasks, uncached database/integration operations, deduplicated backend compilation, and CI/Docker support. Full local verification passed; repeated build reused 4/5 tasks.
 
 - 10:01 UTC: user requested Tailwind-only styling. Replaced the custom stylesheet with Tailwind utilities and a class-merging helper; all 911 candidates validate. Full Nx check pipeline (34 tests) and production builds passed. Visual browser comparison remains unavailable.
+
+- 29 October 2026, admin expansion: implemented the additive migration, restaurant/platform APIs and routed interfaces, then ran local security/concurrency regression checks. Exact active minutes and phase boundary times were not instrumented; no phase-duration total is claimed. Local evidence and external delivery gaps are recorded in ADMIN_IMPLEMENTATION.md and VERIFICATION.md.

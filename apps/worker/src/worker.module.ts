@@ -42,6 +42,14 @@ export class AiWorkerRuntime implements OnModuleInit, OnModuleDestroy {
   private dispatch() {
     if (this.dispatching) return;
     this.dispatching = reconcile(this.db, this.queue)
+      .then(async () => {
+        const client = await this.queue.client;
+        await client.set(
+          'restaurantos:worker:heartbeat',
+          new Date().toISOString(),
+          { EX: 20 },
+        );
+      })
       .catch(() => {
         console.error(
           JSON.stringify({

@@ -3,14 +3,21 @@ services:
     environment:
       WEB_ORIGIN: https://${PUBLIC_HOSTNAME:?Set PUBLIC_HOSTNAME to your DNS hostname}
       COOKIE_SECURE: 'true'
+      PLATFORM_ORIGIN: https://${PUBLIC_PLATFORM_HOSTNAME:?Set PUBLIC_PLATFORM_HOSTNAME}
   web:
     environment:
       WEB_ORIGIN: https://${PUBLIC_HOSTNAME:?Set PUBLIC_HOSTNAME to your DNS hostname}
+      COOKIE_SECURE: 'true'
+      PLATFORM_ORIGIN: https://${PUBLIC_PLATFORM_HOSTNAME:?Set PUBLIC_PLATFORM_HOSTNAME}
+  super-admin:
+    environment:
+      PLATFORM_ORIGIN: https://${PUBLIC_PLATFORM_HOSTNAME:?Set PUBLIC_PLATFORM_HOSTNAME}
       COOKIE_SECURE: 'true'
   caddy:
     image: caddy:2-alpine
     environment:
       PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:?Set PUBLIC_HOSTNAME to your DNS hostname}
+      PUBLIC_PLATFORM_HOSTNAME: ${PUBLIC_PLATFORM_HOSTNAME:?Set PUBLIC_PLATFORM_HOSTNAME}
     ports: ['80:80', '443:443', '443:443/udp']
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

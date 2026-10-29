@@ -110,6 +110,9 @@ export async function reconcile(db: PrismaClient, queue: Queue<DraftJob>) {
   await db.idempotencyRecord.deleteMany({
     where: { expiresAt: { lt: new Date() } },
   });
+  await db.platformIdempotencyRecord.deleteMany({
+    where: { expiresAt: { lt: new Date() } },
+  });
   const drafts = await db.aiDraft.findMany({
     where: {
       attempts: { lt: 3 },

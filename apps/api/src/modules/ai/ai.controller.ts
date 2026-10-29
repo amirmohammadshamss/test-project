@@ -13,7 +13,7 @@ import {
 import { AuthRequest, RoleGuard, Roles, SessionGuard } from '../../common/auth';
 import { ApproveDto, DraftDto } from '../../common/dto';
 import { AiService } from './ai.service';
-@Controller('ai/menu-drafts')
+@Controller(['ai/menu-drafts', 'admin/ai/menu-drafts'])
 @UseGuards(SessionGuard, RoleGuard)
 @Roles('MANAGER')
 export class AiController {

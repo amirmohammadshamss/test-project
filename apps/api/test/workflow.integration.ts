@@ -117,11 +117,14 @@ describe('HTTP security and workflow with real PostgreSQL', () => {
       where: { email: 'waiter@demo.restaurantos.test' },
       include: { memberships: true },
     });
-    const token = await app.get(JwtService).signAsync({
-      sub: user.id,
-      membershipId: user.memberships[0].id,
-      branchId: branchA2,
-    });
+    const token = await app.get(JwtService).signAsync(
+      {
+        sub: user.id,
+        membershipId: user.memberships[0].id,
+        branchId: branchA2,
+      },
+      { audience: 'restaurantos-restaurant' },
+    );
     await request(app.getHttpServer())
       .get('/api/v1/orders')
       .set('Cookie', `session=${token}`)
@@ -381,11 +384,14 @@ test('idempotency replay is branch-scoped even for a user with both branch membe
       .set('Idempotency-Key', sharedKey)
       .send({ tableId })
       .expect(201);
-    const token = await app.get(JwtService).signAsync({
-      sub: user.id,
-      membershipId: membership.id,
-      branchId: branchA2,
-    });
+    const token = await app.get(JwtService).signAsync(
+      {
+        sub: user.id,
+        membershipId: membership.id,
+        branchId: branchA2,
+      },
+      { audience: 'restaurantos-restaurant' },
+    );
     await request(app.getHttpServer())
       .post('/api/v1/orders')
       .set('Cookie', `session=${token}`)

@@ -10,3 +10,4 @@ coverage/
 *.tsbuildinfo
 apps/web/next-env.d.ts
 .nx/
+apps/super-admin/next-env.d.ts

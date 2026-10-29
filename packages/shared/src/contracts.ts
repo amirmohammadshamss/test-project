@@ -5,6 +5,7 @@ export interface Actor {
   tenantId: string;
   branchId: string;
   role: Role;
+  requestId?: string;
 }
 export interface MenuEntry {
   id: string;
@@ -15,6 +16,7 @@ export interface MenuEntry {
   priceRial: number;
   active: boolean;
   available: boolean;
+  version: number;
 }
 export interface Item {
   id: string;
@@ -40,4 +42,11 @@ export interface DraftValue {
   description: string;
   priceToman: number;
   category: string;
+}
+
+export interface PlatformPrincipal {
+  userId: string;
+  adminId: string;
+  sessionId: string;
+  requestId?: string;
 }

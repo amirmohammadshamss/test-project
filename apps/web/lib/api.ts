@@ -12,7 +12,7 @@ export async function api<T>(
   body?: unknown,
 ): Promise<T> {
   const critical =
-    method !== 'GET' && /^\/(orders|kitchen|ai)(\/|$)/.test(path);
+    method !== 'GET' && /^\/(orders|kitchen|ai|admin\/ai)(\/|$)/.test(path);
   let key: string | undefined;
   let storageKey: string | undefined;
   if (critical) {
@@ -55,6 +55,11 @@ export async function api<T>(
   return data as T;
 }
 export const errors: Record<string, string> = {
+  TENANT_SUSPENDED:
+    'دسترسی این رستوران موقتاً تعلیق شده است. با مدیر سامانه تماس بگیرید.',
+  CATEGORY_INACTIVE: 'این دسته‌بندی غیرفعال است.',
+  TABLE_INACTIVE: 'این میز غیرفعال است.',
+  VERSION_REQUIRED: 'اطلاعات نسخه را تازه کنید و دوباره تلاش کنید.',
   BACKEND_UNAVAILABLE:
     'سرور فعلاً در دسترس نیست. برای تلاش دوباره همان دکمه را بزنید.',
   NETWORK_UNCERTAIN:

@@ -31,6 +31,7 @@ export class CompleteDto {
   @IsInt() @Min(1) version!: number;
 }
 export class MenuDto {
+  @IsOptional() @IsInt() @Min(1) version?: number;
   @IsString() @Length(1, 100) name!: string;
   @IsString() @Length(0, 1000) description!: string;
   @IsUUID() categoryId!: string;

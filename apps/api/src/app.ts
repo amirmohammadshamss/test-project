@@ -13,6 +13,8 @@ import { SecurityModule } from './common/security.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { MenuModule } from './modules/menu/menu.module';
+import { PlatformAdminModule } from './modules/platform-admin/platform.module';
+import { RestaurantAdminModule } from './modules/restaurant-admin/admin.module';
 import { AiModule } from './modules/ai/ai.module';
 @Controller('health')
 class HealthController {
@@ -56,6 +58,8 @@ class HealthController {
     OrdersModule,
     MenuModule,
     AiModule,
+    RestaurantAdminModule,
+    PlatformAdminModule,
   ],
   controllers: [HealthController],
 })
@@ -73,8 +77,9 @@ export async function createApp() {
   app.use(helmet());
   app.use(cookieParser());
   const allowedOrigin = process.env.WEB_ORIGIN || 'http://localhost:3000';
+  const platformOrigin = process.env.PLATFORM_ORIGIN || 'http://localhost:3001';
   app.enableCors({
-    origin: allowedOrigin,
+    origin: [allowedOrigin, platformOrigin],
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Idempotency-Key', 'X-CSRF-Protection'],
@@ -93,7 +98,8 @@ export async function createApp() {
             module: 'http',
             requestId: req.requestId,
             tenantId: req.actor?.tenantId,
-            userId: req.actor?.userId,
+            userId: req.actor?.userId || req.platform?.userId,
+            platformAdminId: req.platform?.adminId,
             operation: req.method + ' ' + req.path,
             status: res.statusCode,
             duration: Date.now() - started,
@@ -104,24 +110,31 @@ export async function createApp() {
       // A non-simple header is mandatory: cross-origin forms cannot submit it.
       if (
         req.get('X-CSRF-Protection') !== '1' ||
-        (req.get('Origin') && req.get('Origin') !== allowedOrigin) ||
+        (req.get('Origin') &&
+          req.get('Origin') !==
+            (req.path.startsWith('/api/v1/platform/')
+              ? platformOrigin
+              : allowedOrigin)) ||
         req.get('Sec-Fetch-Site') === 'cross-site'
       )
         return res
           .status(403)
           .json({ error: { code: 'CSRF_REJECTED', requestId: req.requestId } });
     }
+    const isPlatform =
+      req.path.startsWith('/api/v1/platform/') &&
+      !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
     const isLogin = req.path.endsWith('/auth/login');
     const isAi = req.path.includes('/ai/') && req.method === 'POST';
-    if (isLogin || isAi) {
+    if (isLogin || isAi || isPlatform) {
       const now = Date.now();
       for (const [key, entry] of limits)
         if (entry.reset <= now) limits.delete(key);
-      const key = `${req.ip}:${isLogin ? 'login' : 'ai'}`;
+      const key = `${req.ip}:${isLogin ? 'login' : isPlatform ? 'platform' : 'ai'}`;
       const entry = limits.get(key) || { count: 0, reset: now + 60000 };
       entry.count++;
       limits.set(key, entry);
-      if (entry.count > (isLogin ? 30 : 15))
+      if (entry.count > (isLogin ? 30 : isPlatform ? 60 : 15))
         return res
           .status(429)
           .json({ error: { code: 'RATE_LIMITED', requestId: req.requestId } });

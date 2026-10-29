@@ -6,12 +6,12 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "nx run-many -t dev -p api,worker,web --parallel=3",
-    "build": "nx run-many -t build -p api,worker,web",
+    "dev": "nx run-many -t dev -p api,worker,web,super-admin --parallel=4",
+    "build": "nx run-many -t build -p api,worker,web,super-admin",
     "lint": "nx run workspace:lint",
     "format": "nx run workspace:format",
     "format:check": "nx run workspace:format-check",
-    "typecheck": "nx run-many -t typecheck -p api,worker,web",
+    "typecheck": "nx run-many -t typecheck -p api,worker,web,super-admin",
     "test": "nx run-many -t test -p api,worker,web",
     "test:integration": "nx run workspace:test-integration",
     "test:e2e": "nx run workspace:test-integration",
@@ -21,7 +21,8 @@
     "prepare": "husky",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:integration && pnpm build",
     "nx": "nx",
-    "graph": "nx graph"
+    "graph": "nx graph",
+    "db:seed-platform": "nx run database:seed-platform"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.8",

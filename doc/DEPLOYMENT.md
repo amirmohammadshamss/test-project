@@ -37,3 +37,9 @@ Configuration references: [Compose startup dependencies](https://docs.docker.com
 ## Current source delivery blocker
 
 The initial local source commit exists, but GitHub rejected its push because the existing credential lacks `workflow` scope for `.github/workflows/ci.yml`. Update GitHub authentication to include the required workflow access before retrying. Do not drop the CI workflow to bypass this server restriction. Railway was identified as a compatible optional deployment integration but is not connected.
+
+## Super Admin deployment configuration
+
+The expanded Compose stack includes `super-admin` on localhost port 3001 with a runtime API proxy. HTTPS configuration requires **both** `PUBLIC_HOSTNAME` and `PUBLIC_PLATFORM_HOSTNAME`; use distinct hostnames and exact `WEB_ORIGIN` / `PLATFORM_ORIGIN`. Caddy routes the platform hostname to `super-admin:3001`. Host-only HttpOnly cookies and explicit JWT audiences separate the contexts. Existing restaurant cookies require fresh login after this migration.
+
+The platform seed is deliberately opt-in and rejects production. Password-only platform access is a nonproduction prototype, visibly labeled in the UI; production MFA/onboarding and restricted privileged access must be completed before real-customer use. This configuration has not been run with Docker or deployed over public HTTPS in this environment.

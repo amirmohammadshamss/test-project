@@ -76,6 +76,8 @@ jobs:
         run: docker compose up --build -d
       - name: Wait for database-backed web readiness
         run: node scripts/wait-for-http.mjs http://localhost:3000/api/v1/health/ready
+      - name: Confirm Super Admin frontend responds
+        run: node scripts/wait-for-http.mjs http://localhost:3001/login
       - name: Complete waiter and kitchen flow through Docker stack
         run: node --env-file=.env scripts/smoke.mjs
       - name: Retry after committed-response loss and PostgreSQL restart
@@ -88,9 +90,10 @@ jobs:
       - name: Validate production HTTPS configuration
         env:
           PUBLIC_HOSTNAME: restaurant.example.com
+          PUBLIC_PLATFORM_HOSTNAME: platform.example.com
         run: |
           docker compose -f docker-compose.yml -f docker-compose.https.yml config --quiet
-          docker run --rm -e PUBLIC_HOSTNAME=restaurant.example.com -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          docker run --rm -e PUBLIC_PLATFORM_HOSTNAME=platform.example.com -e PUBLIC_HOSTNAME=restaurant.example.com -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
       - name: Show startup evidence on failure
         if: failure()
         run: docker compose logs --no-color --tail=100

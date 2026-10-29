@@ -27,11 +27,14 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const user = await this.auth.authenticate(input.email, input.password);
-    const token = await this.jwt.signAsync({
-      sub: user.userId,
-      membershipId: user.membershipId,
-      branchId: user.branchId,
-    });
+    const token = await this.jwt.signAsync(
+      {
+        sub: user.userId,
+        membershipId: user.membershipId,
+        branchId: user.branchId,
+      },
+      { audience: 'restaurantos-restaurant' },
+    );
     res.cookie('session', token, {
       httpOnly: true,
       secure:

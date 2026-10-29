@@ -65,6 +65,12 @@ export class AiService {
           create: { tenantId: actor.tenantId, name: result.data.category },
           update: {},
         });
+        await tx.$queryRaw`SELECT id FROM "Category" WHERE id=${category.id}::uuid FOR SHARE`;
+        const currentCategory = await tx.category.findUniqueOrThrow({
+          where: { id: category.id },
+        });
+        if (!currentCategory.active)
+          throw new BusinessError('CATEGORY_INACTIVE');
         const item = await tx.menuItem.create({
           data: {
             tenantId: actor.tenantId,

@@ -105,6 +105,34 @@ importers:
 
   apps/api: {}
 
+  apps/super-admin:
+    dependencies:
+      next:
+        specifier: 16.2.12
+        version: 16.2.12(@babel/core@7.29.7)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      react:
+        specifier: ^19.2.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.2.0
+        version: 19.3.1(react@19.3.1)
+    devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.1.0
+        version: 4.3.3
+      '@types/react':
+        specifier: ^19.2.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.2.0
+        version: 19.3.0(@types/react@19.3.0)
+      postcss:
+        specifier: ^8.5.6
+        version: 8.5.32
+      tailwindcss:
+        specifier: ^4.1.0
+        version: 4.3.3
+
   apps/web:
     dependencies:
       next:

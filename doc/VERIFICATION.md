@@ -50,3 +50,12 @@ Execution date: 2026-10-29. See `TIME_LOG.md` for checkpoints.
 - All 911 unique utility candidates are detected by Tailwind's scanner and accepted by its compiler. Tailwind class merging was checked for button size, padding, alignment and color overrides.
 - Full Nx-backed verification passed: formatting, lint, type checks, 13 unit tests, 21 real-service integration tests and production builds. The final transparent-search/active-hover adjustments were separately compiled in a successful web production build.
 - Browser inventory remains empty. Visual parity and responsive interactions have not been observed in a browser.
+
+## Admin expansion — 29 October 2026
+
+- Full `pnpm verify` passed: formatting, ESLint, backend and both frontend typechecks, 13 unit tests, 27 real PostgreSQL/Redis integration tests (40 total), and API/worker/web/Super Admin production builds. Integration tasks were uncached.
+- Added tests for manager-only access, cross-context cookies including renamed-cookie attempts, exact CSRF origins, transactional provisioning replay/changed payload/duplicate reference, concurrent provisioning, suspension of existing sessions and login, stale lifecycle versions, activation, audit consistency, menu stale/concurrent edits, category inactivity, staff sanitization, pagination, occupied/inactive tables, actual monitoring and revoked platform sessions. Existing branch/idempotency/AI workflow tests still pass with explicit restaurant JWT audiences.
+- Additive migration applied to the existing local development/test databases. Opt-in platform seed succeeded in development.
+- Restarted all four local services. HTTP smoke checks returned 200 for restaurant `/dashboard` and platform `/login`; platform login, dashboard, tenant directory, audit, queue and health APIs succeeded through port 3001's Next proxy. Health measured API/database/Redis ready and a fresh available worker heartbeat. No raw credentials were printed.
+- Evidence logs in this execution environment: `/tmp/restaurantos-admin-final-verify.log`, `/tmp/restaurantos-admin-integration-final.log`, and service logs `/tmp/restaurantos-{api,worker,web,super-admin}.log`.
+- Browser visual/keyboard/mobile behavior, new monitoring outage/race permutations beyond the listed tests, clean-database deployment, Docker runtime, remote CI, live OpenAI, video and HTTPS hosting remain unverified. Production MFA and production onboarding remain unimplemented. These are open gates, not passing checks.

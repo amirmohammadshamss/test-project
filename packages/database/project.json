@@ -28,6 +28,15 @@
       "cache": false,
       "parallelism": false,
       "dependsOn": ["generate"]
+    },
+    "seed-platform": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --env-file-if-exists=.env --import tsx packages/database/prisma/seed-platform.ts"
+      },
+      "cache": false,
+      "parallelism": false,
+      "dependsOn": ["generate"]
     }
   }
 }

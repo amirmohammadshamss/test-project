@@ -87,9 +87,10 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
         },
         lockTable: async (id) => {
           const rows = await db.$queryRaw<
-            { id: string }[]
-          >`SELECT id FROM "RestaurantTable" WHERE id = ${id}::uuid AND "tenantId" = ${actor.tenantId}::uuid AND "branchId" = ${actor.branchId}::uuid FOR UPDATE`;
+            { id: string; active: boolean }[]
+          >`SELECT id, active FROM "RestaurantTable" WHERE id = ${id}::uuid AND "tenantId" = ${actor.tenantId}::uuid AND "branchId" = ${actor.branchId}::uuid FOR UPDATE`;
           if (!rows.length) throw new BusinessError('NOT_FOUND', 404);
+          if (!rows[0].active) throw new BusinessError('TABLE_INACTIVE');
         },
         findActiveOrder: (tableId) =>
           db.order.findFirst({
@@ -112,10 +113,20 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
           return order;
         },
         menu: async (id) => {
-          const menu = await db.menuItem.findFirst({
+          const initial = await db.menuItem.findFirst({
             where: { tenantId: actor.tenantId, id },
           });
-          if (!menu) throw new BusinessError('NOT_FOUND', 404);
+          if (!initial) throw new BusinessError('NOT_FOUND', 404);
+          await db.$queryRaw`SELECT id FROM "Category" WHERE id=${initial.categoryId}::uuid AND "tenantId"=${actor.tenantId}::uuid FOR SHARE`;
+          await db.$queryRaw`SELECT id FROM "MenuItem" WHERE id=${id}::uuid AND "tenantId"=${actor.tenantId}::uuid FOR SHARE`;
+          const menu = await db.menuItem.findFirstOrThrow({
+            where: { tenantId: actor.tenantId, id },
+            include: { category: { select: { active: true } } },
+          });
+          if (menu.categoryId !== initial.categoryId)
+            throw new BusinessError('VERSION_CONFLICT');
+          if (!menu.category.active)
+            throw new BusinessError('CATEGORY_INACTIVE');
           return menu;
         },
         append: async (order, menu, count) => {

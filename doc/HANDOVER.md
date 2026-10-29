@@ -40,3 +40,7 @@
 - **۱۰۰٬۰۰۰ رستوران:** معماری فعلی به‌صورت ارائه‌شده مناسب این مقیاس نیست. تفکیک ظرفیت داده/صف، کنترل بار، تیم عملیات، بازیابی بحران و طراحی چندناحیه‌ای باید بر اساس اندازه‌گیری انجام شود. وعده ظرفیت بدون آزمون داده نشده است.
 
 برای راه‌اندازی و نگهداری، مسئول فنی باید راهنمای DEPLOYMENT.md را دنبال و نتیجه بررسی‌ها را ثبت کند.
+
+## Admin expansion
+
+See [ADMIN_IMPLEMENTATION.md](./ADMIN_IMPLEMENTATION.md) for migration, controlled platform seed and startup instructions. Manager routes start at `/dashboard` on port 3000; Super Admin starts at `/login` on port 3001. The platform demo seed is opt-in and rejects production mode. Explicit restaurant JWT audiences require existing users to log in again. Production MFA/onboarding, browser verification and external deployment gates remain open.

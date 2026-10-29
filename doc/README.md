@@ -6,6 +6,8 @@ Persian-first restaurant operations MVP implemented from [rfp.md](./rfp.md). Ori
 
 ## Current status
 
+Deployment update: commit `c164433` was built and tested over trusted HTTPS on the supplied Ubuntu server. After a session interruption, fresh SSH and HTTPS connections timed out; current availability requires host-console investigation. See [LIVE_DEPLOYMENT.md](LIVE_DEPLOYMENT.md) for evidence, operations and unresolved access cleanup. The local-only status below predates that deployment.
+
 Local PostgreSQL migrations/seeding, the NestJS API/worker, Next.js production build, and automated tests have been exercised. Real Chromium staff-workflow and kitchen pagination tests now pass, including responsive overflow checks. Docker runtime, remote GitHub Actions, live AI responses, public HTTPS hosting, and the required recording remain **unverified/incomplete**. The admin expansion adds routed manager and separate platform interfaces; see [ADMIN_IMPLEMENTATION.md](./ADMIN_IMPLEMENTATION.md) for setup and current verification. See [VERIFICATION.md](./VERIFICATION.md). This is not a claim of full RFP acceptance.
 
 ## Requirements

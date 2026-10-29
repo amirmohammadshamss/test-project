@@ -57,3 +57,11 @@ Sources: [OpenAI structured outputs](https://developers.openai.com/api/docs/guid
 ## Local verification results
 
 Full Nx formatting, lint, TypeScript, unit/integration checks and production builds pass. The suite contains 20 unit tests and 60 PostgreSQL/Redis integration tests; Chromium passes 9 workflows, including saved AI draft reopening, corrected-price approval and reload persistence. All five migrations apply from scratch. The evaluation command refuses to invoke a model without explicit selection/confirmation. Provider responses in tests are fixtures, not live inference. An approval retried with identical values returns the existing item; conflicting values after another approval fail with 409 rather than silently accepting different prices.
+
+## AvalAI configuration — 30 October 2026
+
+AvalAI is supported with `AI_PROVIDER=avalai`, `AVALAI_API_KEY` and optional `AVALAI_MODEL` (default `gpt-4.1-mini`). The worker calls the fixed HTTPS endpoint `https://api.avalai.ir/v1/responses`; credentials are not passed to the API or frontends. See the [official quickstart](https://docs.avalai.ir/fa/quickstart). Configure the secret in an ignored mode-0600 `.env` or deployment secret store, never source control. Both menu extraction and the restricted manager planner use this provider.
+
+A single live Persian menu extraction returned a schema-valid draft and the correct 380,000-toman price using 301 input and 38 output tokens. Its kebab category was unsuitable because the current menu schema has a limited category vocabulary. This is connectivity evidence, not a quality benchmark; review and edit drafts before approval. No menu item was published by this probe. Existing timeout, bounded response/output tokens, retry classification, input validation and strict result validation remain enforced. Evaluation scripts accept AvalAI and require explicit cost opt-in.
+
+The supplied key is configured locally only. Production SSH/HTTPS remained unreachable during this change, so the remote worker is still on the earlier release with AI disabled. Deploy the updated worker and Compose configuration, then set the server secret and recreate the worker when host access returns. No remote activation is claimed.

@@ -2,6 +2,8 @@
 
 ## Current verification boundary
 
+Deployment update: see [LIVE_DEPLOYMENT.md](LIVE_DEPLOYMENT.md). Server Docker, public HTTPS, independent browser workflows and isolated backup restoration passed before an interruption. Subsequent SSH/HTTPS connections timed out; current availability and temporary-key revocation remain unresolved. The following original boundary predates that deployment.
+
 Local API/worker/frontends, real PostgreSQL/Redis checks and Chromium workflows pass. Public HTTPS hosting, Docker/Compose runtime, remote CI for the final commit, live AI quality, physical-device Push, backup restoration and a narrated recording remain unverified. No hostname or compatible host account is configured here. Available static/Workers hosting cannot run this NestJS/PostgreSQL/BullMQ stack unchanged; no static imitation or paid host was provisioned.
 
 ## Reproducible local demo

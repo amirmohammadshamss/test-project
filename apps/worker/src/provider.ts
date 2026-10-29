@@ -21,45 +21,56 @@ export class OpenAiStructuredParser<T> {
     private readonly outputSchema: z.ZodType<T>,
     private readonly instructions: string,
     private readonly jsonSchema: Record<string, unknown>,
+    private readonly provider: 'openai' | 'avalai' = 'openai',
   ) {}
   async parse(input: string, usage?: (value: AiUsage) => void) {
     validateInput(input);
-    const apiKey = process.env.OPENAI_API_KEY;
+    const avalai = this.provider === 'avalai';
+    const apiKey = avalai
+      ? process.env.AVALAI_API_KEY
+      : process.env.OPENAI_API_KEY;
     if (!apiKey) throw new PermanentFailure('AI_NOT_CONFIGURED');
     const schema = { ...this.jsonSchema };
-    const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+    const model =
+      (avalai ? process.env.AVALAI_MODEL : process.env.OPENAI_MODEL) ||
+      'gpt-4.1-mini';
     delete schema.$schema;
     let response: Response;
     try {
-      response = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        redirect: 'error',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(20000),
-        body: JSON.stringify({
-          model,
-          store: false,
-          max_output_tokens: 600,
-          input: [
-            {
-              role: 'system',
-              content: this.instructions,
-            },
-            { role: 'user', content: input },
-          ],
-          text: {
-            format: {
-              type: 'json_schema',
-              name: 'menu_entry',
-              strict: true,
-              schema,
-            },
+      response = await fetch(
+        avalai
+          ? 'https://api.avalai.ir/v1/responses'
+          : 'https://api.openai.com/v1/responses',
+        {
+          method: 'POST',
+          redirect: 'error',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
           },
-        }),
-      });
+          signal: AbortSignal.timeout(20000),
+          body: JSON.stringify({
+            model,
+            store: false,
+            max_output_tokens: 600,
+            input: [
+              {
+                role: 'system',
+                content: this.instructions,
+              },
+              { role: 'user', content: input },
+            ],
+            text: {
+              format: {
+                type: 'json_schema',
+                name: 'menu_entry',
+                strict: true,
+                schema,
+              },
+            },
+          }),
+        },
+      );
     } catch {
       throw new Error('AI_PROVIDER_TIMEOUT_OR_NETWORK');
     }
@@ -95,7 +106,7 @@ export class OpenAiStructuredParser<T> {
       .safeParse(await boundedJson(response));
     if (envelope.success)
       usage?.({
-        provider: 'openai',
+        provider: this.provider,
         model,
         inputTokens: envelope.data.usage?.input_tokens,
         outputTokens: envelope.data.usage?.output_tokens,
@@ -256,6 +267,13 @@ export function configuredManagerPlanner(): ManagerPlanner {
       managerInstructions,
       z.toJSONSchema(managerPlanSchema),
     );
+  else if (provider === 'avalai')
+    adapter = new OpenAiStructuredParser(
+      managerPlanSchema,
+      managerInstructions,
+      z.toJSONSchema(managerPlanSchema),
+      'avalai',
+    );
   else if (
     provider === 'openai' &&
     process.env.AI_PROVIDER_ELIGIBILITY_CONFIRMED === 'true'
@@ -280,6 +298,13 @@ export function configuredManagerPlanner(): ManagerPlanner {
 export function configuredMenuParser(): MenuParser {
   const provider = process.env.AI_PROVIDER || 'disabled';
   if (provider === 'ollama') return new OllamaMenuParser();
+  if (provider === 'avalai')
+    return new OpenAiStructuredParser(
+      menuDraftSchema,
+      menuInstructions,
+      menuDraftJsonSchema,
+      'avalai',
+    );
   if (
     provider === 'openai' &&
     process.env.AI_PROVIDER_ELIGIBILITY_CONFIRMED === 'true'

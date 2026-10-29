@@ -4,7 +4,7 @@ import type { AiUsage } from '../packages/shared/src/ai';
 async function main() {
   if (
     process.env.AI_EVAL_CONFIRM !== '1' ||
-    !['ollama', 'openai'].includes(process.env.AI_PROVIDER || '')
+    !['ollama', 'openai', 'avalai'].includes(process.env.AI_PROVIDER || '')
   )
     throw new Error(
       'Select an eligible AI_PROVIDER and explicitly set AI_EVAL_CONFIRM=1. Evaluation invokes the model and may incur costs.',

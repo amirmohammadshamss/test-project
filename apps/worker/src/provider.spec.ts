@@ -146,3 +146,46 @@ test('provider selection fails closed and oversized output is rejected', async (
     else process.env.AI_PROVIDER_ELIGIBILITY_CONFIRMED = eligibility;
   }
 });
+
+test('AvalAI uses its fixed origin and credential, validates output and tracks provider usage', async () => {
+  const old = process.env.AVALAI_API_KEY;
+  const oldProvider = process.env.AI_PROVIDER;
+  try {
+    process.env.AVALAI_API_KEY = 'avalai-test-only';
+    process.env.AI_PROVIDER = 'avalai';
+    const mock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        status: 'completed',
+        usage: { input_tokens: 12, output_tokens: 25 },
+        output: [
+          {
+            type: 'message',
+            content: [{ type: 'output_text', text: JSON.stringify(result) }],
+          },
+        ],
+      }),
+    );
+    const { configuredMenuParser } = await import('./provider');
+    const usage = jest.fn();
+    expect(
+      await configuredMenuParser().parse('برگر ۴۵۰ هزار تومان', usage),
+    ).toEqual(result);
+    expect(mock.mock.calls[0][0]).toBe('https://api.avalai.ir/v1/responses');
+    expect(mock.mock.calls[0][1]?.headers).toMatchObject({
+      Authorization: 'Bearer avalai-test-only',
+    });
+    expect(usage).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'avalai', inputTokens: 12 }),
+    );
+    delete process.env.AVALAI_API_KEY;
+    await expect(configuredMenuParser().parse('برگر تست')).rejects.toThrow(
+      'AI_NOT_CONFIGURED',
+    );
+    expect(mock).toHaveBeenCalledTimes(1);
+  } finally {
+    if (old === undefined) delete process.env.AVALAI_API_KEY;
+    else process.env.AVALAI_API_KEY = old;
+    if (oldProvider === undefined) delete process.env.AI_PROVIDER;
+    else process.env.AI_PROVIDER = oldProvider;
+  }
+});

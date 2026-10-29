@@ -1,4 +1,88 @@
-# Review against the Solo AI Builder Assessment
+# Current assessment review — commit c164433
+
+Reviewed 29 October 2026 against the original **Senior Full-Stack Engineer — Solo AI Builder Assessment**. The working tree was clean at the start of this review. This update uses the last successful verification of the committed implementation; it does not claim another test run, public deployment or live model call.
+
+## Verdict
+
+**Strong local engineering and a credible staff workflow; final submission remains incomplete.** The prior code/demo/documentation findings have been addressed. The remaining critical gaps cannot be solved by adding more features: public delivery, live AI evidence, recording, and accurate time-box disclosure.
+
+The best assessment story is **Persian table-to-kitchen service with safe concurrent edits, recovery and explicit human decisions**, accompanied by one reviewed AI menu-draft workflow. Payments and accounting can remain excluded. Platform administration, Push and the reporting assistant are later expansions; their presence should not be used to imply that the original scope or six-hour cap was met.
+
+## Evidence now available
+
+- Local verification passed: **25 unit tests, 66 PostgreSQL/Redis integration tests, 10 Chromium workflows**, TypeScript, lint, formatting and production builds. Some deterministic build/test tasks used Nx cache; integration and browser tasks were executed.
+- All **seven migrations** applied to a fresh isolated local database.
+- Fresh seeding produced **126 orders, 366 lines, 368 order events, four notifications, two menu drafts and two saved reports**, across two restaurants with distinct menus and thirty days of fictional history. Fixed AI examples are prominently labeled, not represented as inference.
+- Two reseeds preserved counts, edited menu prices/instructions and notification read status. Seeded passwords/roles and base restaurant names are deliberately restored.
+- The restarted local stack passed the complete waiter/kitchen HTTP smoke and the explicitly disabled-provider outcome.
+- Commit `c164433` now includes the previously uncommitted notifications, AI workflows and hardening. Remote delivery and CI for that commit have not been established.
+
+Sources: [VERIFICATION.md](VERIFICATION.md), [ASSESSMENT_FIXES.md](ASSESSMENT_FIXES.md), [seed.ts](../packages/database/prisma/seed.ts), [demo-history.ts](../packages/database/prisma/demo-history.ts).
+
+## Assessment by part
+
+### Part A — SCOPE.md: largely satisfied, with provenance caveat
+
+The scope states the customer problem, actors, chosen workflow, exclusions, assumptions, currency/time handling, invariants and acceptance approach. Dated amendments preserve the original boundary rather than pretending subsequent features existed from the beginning. It declares pre-build authorship; a repository review alone does not independently establish editing order. Keep any original planning evidence and identify later user-requested work separately.
+
+### Part B — Product: locally convincing; required live delivery is missing
+
+The chosen workflow has business value: table selection, ordering with preparation instructions, kitchen progression, serving, safe correction/cancellation and completion. Price/name/instruction snapshots and clear role limits improve shift safety. Concurrent additions, stale edits, duplicate requests, reconnects and the large kitchen backlog are exercised by meaningful tests.
+
+Iran-specific decisions go beyond translated labels: Persian RTL, Persian number/calendar formatting, Tehran timestamps, whole-toman entry with integer rial storage, distinct local menu examples, provider eligibility awareness, and manual alternatives when AI fails. These remain desk-researched choices. No restaurant interview, observed shift or equipment/connectivity trial is documented, so do not call the workflow field-proven.
+
+Three restaurant roles are proportionate to the selected workflow. Cashier permissions, discounts and payment are not required merely because the brief gives a concurrency example; excluding them is defensible if completion is clearly operational rather than financial. Kitchen cancellation acknowledgment, partial-quantity correction, branch switching, staff provisioning and full offline operation remain real limitations.
+
+The richer first-open demo resolves the earlier thin-history gap. However, the required deployed product is not available at a verified public HTTPS URL, and AI defaults to disabled. Mocked provider tests and seeded examples cannot establish a functioning live AI capability.
+
+**AI product judgment:** the menu assistant is the stronger demonstration because it reduces a concrete onboarding task while keeping price publication under manager control. The reporting assistant's read-only selection is technically safe, but its advantage over ordinary report filters is not yet measured. Demonstrate one useful capability well instead of treating the number of AI screens as value.
+
+### Part C — Engineering: the strongest section; production evidence is partial
+
+The schema reflects restaurants, branches, memberships, orders, line snapshots, events, sessions and durable jobs rather than individual screens. Scoped parent locks serialize invariants; versions reject stale edits; idempotency results commit with business changes. Critical commands remain REST/database operations and external notifications remain best effort.
+
+Authorization is server-owned. Membership, branch, role, session and suspension checks are revalidated; composite relationships constrain tenant ownership. Negative HTTP/socket tests support the design. RLS is a possible additional defense, not an assessment prerequisite. No demonstrated cross-tenant exploit was identified in this focused review; tests do not prove an unconditional absence of every possible future leak.
+
+The earlier shared-IP burst-limit problem is corrected with account/verified-identity buckets and a high coarse source ceiling. Forwarded headers cannot choose an identity. Daily tenant AI budgets are durable; burst counters remain process-local. The smoke policy now follows provider selection, and unexpected-error logs retain sanitized cause information. One-command Docker setup is documented but its runtime remains unverified here. Public proxy/TLS, backup restoration, remote CI and representative capacity still need acceptance evidence.
+
+Three defensible security stories are: tenant/branch object access, stolen/revoked sessions and separate privileged context, and duplicated/concurrent mutations or untrusted AI output. Present the implemented controls and tests for these rather than a generic checklist.
+
+Testing choices are appropriate: real PostgreSQL/Redis concurrency/retry/isolation checks plus browser service/recovery workflows. Explicitly disclose omitted validation and why: target hosting is needed for Docker/TLS/proxy acceptance, an eligible provider for model quality, devices for OS Push, staff for shift usability and representative traffic for capacity. None is equivalent to more unit-test coverage.
+
+### Part D — DECISIONS.md: satisfied in substance
+
+Entries include decisions, reasons, alternatives and accepted trade-offs. At least two genuine revisits are explicit: excluding cancellation originally and prioritizing broad administration before shift proof. Later entries explain provider independence, outboxes, limited reports, identity-aware throttles and immutable instructions. Be prepared to defend where each choice breaks; documentation alone is not proof of understanding.
+
+### Part E — AI_USAGE.md: substantial and honest; personal attribution remains the candidate's job
+
+The record identifies the coding agent's tasks, repetitive work saved, generated mistakes, rejected recommendations and code verification. It distinguishes test fixtures from live AI and does not invent measured time savings. The candidate still needs to state which decisions they personally owned, challenged and verified. The assistant cannot fabricate human architectural authorship or an account of reasoning that did not occur.
+
+### Part F — HANDOVER.md: substantially satisfied
+
+The current handover is consistently Persian and owner-oriented. It explains the main shift, line instructions, corrections, reconnects, notifications, manual AI alternatives, exact limitations, ranked next five improvements and concrete 10/1,000/100,000-restaurant constraints. It correctly avoids equating order value with payment/profit or notification acknowledgment with stopping cooking. Remaining production limitations are disclosed rather than understated.
+
+## Required final deliverables still missing
+
+1. **Public HTTPS URL and tested reviewer credentials.** Localhost and prepared Caddy files are not deployment evidence. Verify the actual proxy, cookies, multi-session workflow and production access boundaries.
+2. **One live evaluated AI workflow.** Configure an eligible provider/self-hosted model and run realistic Persian examples, including failures and human approval. Report latency, corrections and known usage honestly; do not invent cost or accuracy.
+3. **A playable narrated 5–10 minute walkthrough.** Spend at least half on why: customer problem, exclusions, invariants, security choices, limitations and next work. A script or automated test video is not the requested recording.
+4. **Honest time/source delivery provenance.** Active time was not reliably instrumented. Later scope does not automatically waive the original six-hour cap. Disclose an overrun if known, or unknown active duration if not; do not reconstruct invented compliant hours. Confirm the final repository branch/commit and remote CI.
+
+Public-host backup restoration, physical-device Push and field/load trials are additional operating/claim-validation gaps. They should be prioritized according to what is actually promised, rather than treated as requirements to implement every future feature before submission.
+
+## Hiring assessment judgment
+
+On code and locally demonstrated behavior, this gives a reviewer substantial senior-engineering evidence. On the assessment as a complete customer engagement, it is still incomplete. Product judgment is mixed: the narrow staff workflow and human-reviewed AI are defensible, while breadth expanded before deployment, live AI proof and recording were finished. The work log is candid but cannot establish budget compliance.
+
+There is no official numeric rubric, so a percentage or hiring score would imply precision not supported by the brief. The clearest recommendation is to **finish delivery evidence and explain the trade-offs**, not expand scope again.
+
+---
+
+## Historical pre-fix review
+
+The following review is preserved as the record that motivated remediation. Its thin-seed, uncommitted-source, missing-instruction, throttling, smoke-policy, diagnostic and owner-document findings describe the earlier state; they are not current open bugs. See the current assessment above and [ASSESSMENT_FIXES.md](ASSESSMENT_FIXES.md).
+
+### Original review against the Solo AI Builder Assessment
 
 Historical review before remediation; current fixes and remaining gates are tracked in [ASSESSMENT_FIXES.md](ASSESSMENT_FIXES.md). Findings below preserve the pre-fix evidence.
 

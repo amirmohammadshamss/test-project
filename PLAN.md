@@ -19,6 +19,24 @@ Source: [rfp.md](./rfp.md). Execution checklist updated during implementation. C
 
 Actual phase times were not separately instrumented. `TIME_LOG.md` records observed checkpoints and conservative wall elapsed time, including approval/interruption delays; no precise phase-level time is claimed.
 
+## Requested Nx addition
+
+- [x] Add Nx to the existing pnpm workspace and define explicit app/library/tooling projects.
+- [x] Route root build, typecheck, unit test, integration test, lint, format and database scripts through Nx targets.
+- [x] Model dependencies and deduplicate the shared backend compile/check task.
+- [x] Cache deterministic tasks and leave database operations, integration tests and services uncached.
+- [x] Ignore local Nx artifacts and prepare CI cache restoration and non-root Docker task execution.
+- [x] Verify all six projects, dependency graph, full local checks and unchanged-build cache reuse.
+
+## Requested Tailwind-only styling
+
+- [x] Replace the custom frontend stylesheet with Tailwind utility groups and state/responsive variants.
+- [x] Keep the global stylesheet limited to the Tailwind import and remove custom keyframes/selector rules.
+- [x] Resolve composed utility overrides without inline styles or another styling framework.
+- [x] Verify all 911 utility candidates are extracted and accepted by Tailwind.
+- [x] Pass the Nx-backed local check pipeline (34 tests), production build and utility-composition checks.
+- [ ] Perform browser visual comparison when a browser is connected; unavailable in this session.
+
 ## Phase 1 — Scope and workflow decisions
 
 **Timebox:** 35 minutes · elapsed target: 0:35 · actual: not separately timed (see `TIME_LOG.md`)

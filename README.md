@@ -40,12 +40,46 @@ Start these processes in separate terminals from the repository root:
 ```sh
 node --env-file=.env dist/apps/api/src/main.js
 node --env-file=.env dist/apps/worker/src/main.js
-pnpm --filter web start
+pnpm nx start web
 ```
 
-For source development, `pnpm dev` compiles the API/worker and starts their Node file watchers plus Next dev. Re-run `pnpm --filter api build` after backend edits to regenerate watched files. The explicit TypeScript compilation preserves Nest's DTO metadata; esbuild-only startup would skip that metadata.
+For source development, `pnpm dev` uses Nx to compile the backend once and run API/worker Node file watchers plus Next dev. Re-run `pnpm nx build api` (or `pnpm nx build worker`) after backend edits to regenerate watched files. The explicit TypeScript compilation preserves Nest's DTO metadata; esbuild-only startup would skip that metadata.
 
 The task environment uses a temporary pnpm installation. If pnpm is not on PATH, prepend `/tmp/restaurantos-tools/node_modules/.bin` to PATH for commands in this checkout. Local test services were started on PostgreSQL 55432 and Redis 56379; the ignored `.env` contains those local URLs.
+
+## Nx workspace
+
+Nx 24.0.2 orchestrates the existing pnpm workspace. Projects are `api`, `worker`, `web`, `database`, `shared`, and the root `workspace` tooling project. Each has explicit `project.json` configuration; `nx.json` defines shared inputs and caching. No Nx Cloud account is required or connected.
+
+```sh
+pnpm nx show projects
+pnpm nx build api
+pnpm nx build worker
+pnpm nx build web
+pnpm nx test api
+pnpm nx test worker
+pnpm nx test web
+pnpm nx run database:generate
+pnpm nx run database:migrate
+pnpm nx run database:seed
+pnpm graph
+```
+
+The existing root scripts now run Nx targets: `pnpm build`, `pnpm typecheck`, `pnpm test`, `pnpm lint`, and `pnpm test:integration`. `pnpm verify` retains the required sequence and runs all checks through those targets. Use `--output-style=static` on an Nx invocation to show complete task logs. Run a project's `dev` or `start` target through `pnpm nx`; start expects an existing build.
+
+API and worker build/typecheck targets delegate to a single shared TypeScript compilation/check in `workspace`. This preserves current `dist/apps/...` entrypoints and lets Nx deduplicate the prerequisite instead of letting two compilers write the same output directory. Their graph dependencies include database/shared; web depends on shared.
+
+Builds, type checks, lint and isolated unit tests use local caching. Inputs include relevant app/library source, workspace configuration, lockfile and Node version. Web builds additionally account for `NODE_ENV`; its API address is resolved at runtime. Database client generation, migrations, seeding, integration/E2E tests, formatting and long-running services are uncached. Integration tests remain serial and exercise actual database/queue state on every invocation.
+
+GitHub Actions restores `.nx/cache` for task reuse; it does not persist Nx workspace metadata. Docker builds run as the `node` user so runtime Nx/Prisma tasks can write their generated state. `.nx/` is excluded from Git, formatting, lint and Docker build context. Daemon mode is disabled for reproducible local/container runs.
+
+For focused checks, use `pnpm nx affected -t test,build --base=<base-commit> --head=HEAD` after committing the change you want to compare. Use `pnpm nx reset` to clear local Nx state if needed.
+
+References: [adding Nx to an existing monorepo](https://nx.dev/docs/kb/adding-to-monorepo), [project configuration](https://nx.dev/docs/reference/project-configuration), and [cache inputs](https://nx.dev/docs/reference/inputs).
+
+## Frontend styling
+
+The frontend uses Tailwind utilities exclusively. `apps/web/app/globals.css` contains only the Tailwind import; there are no custom selector rules, CSS modules, inline style objects or hand-written keyframes. Repeated utility groups live in `apps/web/lib/ui.ts`, with data-attribute variants for nested layouts and state styling. `tailwind-merge` resolves conflicting composed utilities. Responsive breakpoints, RTL layout, focus/disabled states and reduced-motion behavior are expressed through Tailwind variants.
 
 ## Demo accounts
 

@@ -34,3 +34,19 @@ Execution date: 2026-10-29. See `TIME_LOG.md` for checkpoints.
 - Added a Docker Compose CI job for complete startup, built-stack waiter/kitchen flow, committed-response-loss/database-restart replay, ordering while Redis is stopped, and HTTPS configuration validation. It is not verified remotely yet.
 - Added `docker-compose.https.yml` and `Caddyfile`; the override forces HTTPS origin/Secure cookies, persists certificate state, and keeps web port 3000 on localhost. YAML parses and lint/format checks pass; actual container/certificate verification remains pending.
 - Railway was identified as an optional compatible host integration; it is not connected. No hosting resources were created.
+
+## Nx migration
+
+- Nx 24.0.2 discovers `api`, `worker`, `web`, `database`, `shared` and `workspace`.
+- Exported graph confirms API/worker → database/shared and web → shared.
+- `pnpm verify` passed through the new Nx-backed root scripts: formatting, lint, backend/web type checks, all 13 unit tests and 21 integration tests, and both backend/Next.js production builds.
+- An immediate unchanged build reused 4 of 5 tasks from local cache; Prisma client generation intentionally ran again. The shared backend compilation executed once per task graph. Removing the generated backend output (with a backup retained) and running `nx build api` restored identical API/worker/client entrypoint hashes from cache. Repeating unit targets reused all three app test caches (5 API + 4 worker + 4 web tests).
+- CI task-cache restoration and Docker ownership were updated for Nx. Remote CI/container execution remain unverified under the existing delivery blockers.
+
+## Tailwind-only styling
+
+- Removed 2,120 lines of custom global CSS; the stylesheet now contains only `@import 'tailwindcss'`.
+- Converted reusable component styles to Tailwind utilities/data-attribute variants in `apps/web/lib/ui.ts`, including responsive, focus, disabled, active, pseudo-element and reduced-motion rules. No inline style objects, CSS modules or custom keyframes remain in frontend source.
+- All 911 unique utility candidates are detected by Tailwind's scanner and accepted by its compiler. Tailwind class merging was checked for button size, padding, alignment and color overrides.
+- Full Nx-backed verification passed: formatting, lint, type checks, 13 unit tests, 21 real-service integration tests and production builds. The final transparent-search/active-hover adjustments were separately compiled in a successful web production build.
+- Browser inventory remains empty. Visual parity and responsive interactions have not been observed in a browser.

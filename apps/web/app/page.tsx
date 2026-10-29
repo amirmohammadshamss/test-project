@@ -1,4 +1,5 @@
 'use client';
+import { ui } from '../lib/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { api, ApiError, errors, localDate, money, number } from '../lib/api';
@@ -8,7 +9,6 @@ import type {
   MenuEntry,
   OrderView,
 } from '../../../packages/shared/src/contracts';
-
 type Me = Actor & {
   name: string;
   restaurant: string;
@@ -19,11 +19,24 @@ type Table = {
   id: string;
   number: number;
   seats: number;
-  orders: { id: string }[];
+  orders: {
+    id: string;
+  }[];
 };
-type Menu = MenuEntry & { category: { name: string } };
-type Order = OrderView & { table?: { number: number } };
-type Category = { id: string; name: string };
+type Menu = MenuEntry & {
+  category: {
+    name: string;
+  };
+};
+type Order = OrderView & {
+  table?: {
+    number: number;
+  };
+};
+type Category = {
+  id: string;
+  name: string;
+};
 type Draft = {
   id: string;
   status: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'APPROVED';
@@ -118,8 +131,8 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
 }
 function Brand() {
   return (
-    <div className="brand">
-      <span className="brand-mark">ن</span>
+    <div {...ui('brand')}>
+      <span {...ui('brand-mark')}>ن</span>
       <div>
         <strong>نارنج</strong>
         <small>RESTAURANT OS</small>
@@ -129,7 +142,7 @@ function Brand() {
 }
 function Badge({ status }: { status: keyof typeof statusLabels }) {
   return (
-    <span className={`badge ${status.toLowerCase()}`}>
+    <span {...ui(`badge ${status.toLowerCase()}`)}>
       <i />
       {statusLabels[status]}
     </span>
@@ -137,8 +150,8 @@ function Badge({ status }: { status: keyof typeof statusLabels }) {
 }
 function Empty({ title, description }: { title: string; description: string }) {
   return (
-    <div className="empty">
-      <span className="empty-icon">
+    <div {...ui('empty')}>
+      <span {...ui('empty-icon')}>
         <Icon name="menu" size={28} />
       </span>
       <h3>{title}</h3>
@@ -146,7 +159,6 @@ function Empty({ title, description }: { title: string; description: string }) {
     </div>
   );
 }
-
 export default function RestaurantApp() {
   const [me, setMe] = useState<Me | null>(null);
   const [booting, setBooting] = useState(true);
@@ -350,7 +362,10 @@ export default function RestaurantApp() {
     );
   const updateItem = (
     item: Order['items'][number],
-    change: { quantity?: number; status?: string },
+    change: {
+      quantity?: number;
+      status?: string;
+    },
     id = selected,
   ) =>
     act(() =>
@@ -359,21 +374,20 @@ export default function RestaurantApp() {
         ...change,
       }),
     );
-
   if (booting)
     return (
-      <div className="loading-screen">
+      <div {...ui('loading-screen')}>
         <Brand />
         <p>در حال آماده‌سازی محیط کار…</p>
       </div>
     );
   if (!me)
     return (
-      <div className="login-page">
-        <section className="login-form">
+      <div {...ui('login-page')}>
+        <section {...ui('login-form')}>
           <Brand />
-          <div className="login-heading">
-            <span className="eyebrow">یک شیفتِ منظم‌تر</span>
+          <div {...ui('login-heading')}>
+            <span {...ui('eyebrow')}>یک شیفتِ منظم‌تر</span>
             <h1>به نارنج خوش آمدید.</h1>
             <p>همه‌چیز، از اولین سفارش تا آخرین سرو، در یک‌جا.</p>
           </div>
@@ -400,16 +414,16 @@ export default function RestaurantApp() {
               />
             </label>
             {error && (
-              <p className="form-error" role="alert">
+              <p {...ui('form-error')} role="alert">
                 {error}
               </p>
             )}
-            <button className="primary login-submit" disabled={busy}>
+            <button {...ui('primary login-submit')} disabled={busy}>
               {busy ? 'در حال ورود…' : 'ورود به محیط کار'}
               <Icon name="arrow" />
             </button>
           </form>
-          <div className="demo-note">
+          <div {...ui('demo-note')}>
             <strong>محیط نمایشی رستوران</strong>
             <p>
               حساب‌های مدیر، سالن و آشپزخانه در راهنمای پروژه قرار دارند. از رمز
@@ -418,9 +432,9 @@ export default function RestaurantApp() {
           </div>
           <footer>نارنج · همراهِ هر روز رستوران شما</footer>
         </section>
-        <section className="login-art">
-          <div className="art-caption">
-            <span className="eyebrow">از سالن تا آشپزخانه</span>
+        <section {...ui('login-art')}>
+          <div {...ui('art-caption')}>
+            <span {...ui('eyebrow')}>از سالن تا آشپزخانه</span>
             <h2>
               سفارش‌ها روشن.
               <br />
@@ -432,28 +446,28 @@ export default function RestaurantApp() {
               نظم کارها با نارنج.
             </p>
           </div>
-          <div className="art-board">
-            <div className="art-board-title">
+          <div {...ui('art-board')}>
+            <div {...ui('art-board-title')}>
               <span>نمای سالن</span>
-              <span className="live-label">
+              <span {...ui('live-label')}>
                 <i />
                 در حال سرویس
               </span>
             </div>
-            <div className="art-tables">
+            <div {...ui('art-tables')}>
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <div
-                  className={
-                    'art-table ' + ([2, 3, 5].includes(n) ? 'active' : '')
-                  }
+                  {...ui(
+                    'art-table ' + ([2, 3, 5].includes(n) ? 'active' : ''),
+                  )}
                   key={n}
                 >
                   <span>{number(n)}</span>
                 </div>
               ))}
             </div>
-            <div className="art-ticket">
-              <span className="ticket-icon">
+            <div {...ui('art-ticket')}>
+              <span {...ui('ticket-icon')}>
                 <Icon name="check" />
               </span>
               <div>
@@ -463,7 +477,7 @@ export default function RestaurantApp() {
               <span>همین حالا</span>
             </div>
           </div>
-          <div className="art-bottom">
+          <div {...ui('art-bottom')}>
             <span>سالن هماهنگ</span>
             <i />
             <span>آشپزخانه منظم</span>
@@ -473,20 +487,19 @@ export default function RestaurantApp() {
         </section>
       </div>
     );
-
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div {...ui('app-shell')}>
+      <aside {...ui('sidebar')}>
         <Brand />
-        <div className="restaurant-switch">
-          <span className="restaurant-avatar">ن</span>
+        <div {...ui('restaurant-switch')}>
+          <span {...ui('restaurant-avatar')}>ن</span>
           <div>
             <strong>{me.restaurant}</strong>
             <small>{me.branch}</small>
           </div>
-          <span className="switch-dots">•••</span>
+          <span {...ui('switch-dots')}>•••</span>
         </div>
-        <span className="nav-label">محیط کار</span>
+        <span {...ui('nav-label')}>محیط کار</span>
         <nav>
           {(me.role === 'KITCHEN'
             ? [{ id: 'kitchen', title: 'آشپزخانه', icon: 'kitchen' }]
@@ -503,7 +516,7 @@ export default function RestaurantApp() {
           ).map((link) => (
             <button
               key={link.id}
-              className={view === link.id ? 'nav-item active' : 'nav-item'}
+              {...ui(view === link.id ? 'nav-item active' : 'nav-item')}
               onClick={() => navigate(link.id as View)}
             >
               <Icon name={link.icon} />
@@ -512,16 +525,16 @@ export default function RestaurantApp() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-bottom">
-          <div className="shift-note">
+        <div {...ui('sidebar-bottom')}>
+          <div {...ui('shift-note')}>
             <i />
             <div>
               <strong>یک تیم، یک جریان</strong>
               <p>تغییرات همکاران هر ۵ ثانیه نمایش داده می‌شود.</p>
             </div>
           </div>
-          <div className="profile">
-            <span className="profile-avatar">{me.name?.slice(0, 1)}</span>
+          <div {...ui('profile')}>
+            <span {...ui('profile-avatar')}>{me.name?.slice(0, 1)}</span>
             <div>
               <strong>{me.name}</strong>
               <small>{roleLabels[me.role]}</small>
@@ -532,33 +545,32 @@ export default function RestaurantApp() {
           </div>
         </div>
       </aside>
-      <main className="main">
-        <header className="topbar">
+      <main {...ui('main')}>
+        <header {...ui('topbar')}>
           <span>
-            فضای کاری <span className="topbar-separator">/</span>{' '}
-            {me.restaurant}
+            فضای کاری <span {...ui('topbar-separator')}>/</span> {me.restaurant}
           </span>
           <div>
-            <span className={'connection ' + (!online ? 'offline' : '')}>
+            <span {...ui('connection ' + (!online ? 'offline' : ''))}>
               <i />
               {online ? 'متصل' : 'ارتباط قطع است'}
             </span>
             <button
-              className="mobile-logout"
+              {...ui('mobile-logout')}
               aria-label="خروج از حساب"
               title="خروج"
               onClick={logout}
             >
               <Icon name="exit" size={17} />
             </button>
-            <span className="topbar-date">
+            <span {...ui('topbar-date')}>
               {updated ? localDate(updated) : 'در حال دریافت…'}
             </span>
           </div>
         </header>
-        <div className="workspace">
+        <div {...ui('workspace')}>
           {error && (
-            <div className="alert error" role="alert">
+            <div {...ui('alert error')} role="alert">
               <span>{error}</span>
               <button onClick={() => setError('')} aria-label="بستن پیام">
                 ×
@@ -566,20 +578,20 @@ export default function RestaurantApp() {
             </div>
           )}
           {notice && (
-            <div className="alert success" role="status">
+            <div {...ui('alert success')} role="status">
               {notice}
             </div>
           )}
           {!online && (
-            <div className="alert error">
+            <div {...ui('alert error')}>
               ارتباط با سرور برقرار نیست. آخرین اطلاعات دریافتی نمایش داده
               می‌شود.
               <button onClick={() => act(refresh, apply)}>تلاش دوباره</button>
             </div>
           )}
-          <div className="page-heading">
+          <div {...ui('page-heading')}>
             <div>
-              <div className="eyebrow">
+              <div {...ui('eyebrow')}>
                 {view === 'tables'
                   ? 'پیشخوان سالن'
                   : view === 'kitchen'
@@ -611,10 +623,10 @@ export default function RestaurantApp() {
                         : 'سفارش‌های باز و تاریخچه سرویس رستوران.'}
               </p>
             </div>
-            <div className="heading-actions">
+            <div {...ui('heading-actions')}>
               {selected ? (
                 <button
-                  className="secondary"
+                  {...ui('secondary')}
                   onClick={() => {
                     setSelected(null);
                     setOrder(null);
@@ -626,20 +638,20 @@ export default function RestaurantApp() {
               ) : view === 'menu' ? (
                 <>
                   <button
-                    className="secondary ai-button"
+                    {...ui('secondary ai-button')}
                     onClick={() => setAiOpen(true)}
                   >
                     <Icon name="spark" />
                     دستیار منو
                   </button>
-                  <button className="primary" onClick={() => setEditor('new')}>
+                  <button {...ui('primary')} onClick={() => setEditor('new')}>
                     <Icon name="plus" />
                     افزودن غذا
                   </button>
                 </>
               ) : (
                 <button
-                  className="secondary icon-button"
+                  {...ui('secondary icon-button')}
                   title="تازه‌سازی"
                   aria-label="تازه‌سازی"
                   disabled={busy}
@@ -652,9 +664,9 @@ export default function RestaurantApp() {
           </div>
           {view === 'tables' && !selected && (
             <>
-              <section className="stats">
+              <section {...ui('stats')}>
                 <div>
-                  <span className="stat-icon green">
+                  <span {...ui('stat-icon green')}>
                     <Icon name="grid" />
                   </span>
                   <div>
@@ -666,7 +678,7 @@ export default function RestaurantApp() {
                   </div>
                 </div>
                 <div>
-                  <span className="stat-icon orange">
+                  <span {...ui('stat-icon orange')}>
                     <Icon name="menu" />
                   </span>
                   <div>
@@ -678,7 +690,7 @@ export default function RestaurantApp() {
                   </div>
                 </div>
                 <div>
-                  <span className="stat-icon neutral">
+                  <span {...ui('stat-icon neutral')}>
                     <Icon name="kitchen" />
                   </span>
                   <div>
@@ -694,8 +706,8 @@ export default function RestaurantApp() {
                   </div>
                 </div>
               </section>
-              <div className="section-toolbar">
-                <div className="tabs">
+              <div {...ui('section-toolbar')}>
+                <div {...ui('tabs')}>
                   {[
                     ['all', 'همه میزها'],
                     ['free', 'آزاد'],
@@ -703,20 +715,20 @@ export default function RestaurantApp() {
                   ].map(([id, label]) => (
                     <button
                       key={id}
-                      className={filter === id ? 'active' : ''}
+                      {...ui(filter === id ? 'active' : '')}
                       onClick={() => setFilter(id)}
                     >
                       {label}
                     </button>
                   ))}
                 </div>
-                <div className="legend">
-                  <i className="free-dot" />
-                  آزاد <i className="occupied-dot" />
+                <div {...ui('legend')}>
+                  <i {...ui('free-dot')} />
+                  آزاد <i {...ui('occupied-dot')} />
                   در حال سرویس
                 </div>
               </div>
-              <div className="table-grid">
+              <div {...ui('table-grid')}>
                 {tables
                   .filter(
                     (t) =>
@@ -733,7 +745,9 @@ export default function RestaurantApp() {
                     return (
                       <button
                         key={table.id}
-                        className={`table-card ${table.orders.length ? 'occupied' : 'available'}`}
+                        {...ui(
+                          `table-card ${table.orders.length ? 'occupied' : 'available'}`,
+                        )}
                         disabled={busy}
                         onClick={() =>
                           table.orders.length
@@ -750,29 +764,29 @@ export default function RestaurantApp() {
                               )
                         }
                       >
-                        <div className="table-card-top">
+                        <div {...ui('table-card-top')}>
                           <span
-                            className={
+                            {...ui(
                               'table-status ' +
-                              (table.orders.length ? 'in-service' : '')
-                            }
+                                (table.orders.length ? 'in-service' : ''),
+                            )}
                           >
                             <i />
                             {table.orders.length ? 'در حال سرویس' : 'آزاد'}
                           </span>
                           <small>{number(table.seats)} نفره</small>
                         </div>
-                        <div className="table-illustration">
-                          <span className="chair c1" />
-                          <span className="chair c2" />
-                          <span className="chair c3" />
-                          <span className="chair c4" />
-                          <span className="table-surface">
+                        <div {...ui('table-illustration')}>
+                          <span {...ui('chair c1')} />
+                          <span {...ui('chair c2')} />
+                          <span {...ui('chair c3')} />
+                          <span {...ui('chair c4')} />
+                          <span {...ui('table-surface')}>
                             {number(table.number)}
                           </span>
                         </div>
                         <h3>میز {number(table.number)}</h3>
-                        <div className="table-card-bottom">
+                        <div {...ui('table-card-bottom')}>
                           {table.orders.length ? (
                             <>
                               <span>
@@ -780,7 +794,7 @@ export default function RestaurantApp() {
                                 سفارش
                               </span>
                               {ready ? (
-                                <span className="ready-label">آماده سرو</span>
+                                <span {...ui('ready-label')}>آماده سرو</span>
                               ) : (
                                 <span>
                                   {money(
@@ -804,16 +818,16 @@ export default function RestaurantApp() {
                     );
                   })}
               </div>
-              <div className="section-footnote">
+              <div {...ui('section-footnote')}>
                 <Icon name="clock" size={16} />
                 آخرین تغییرات سالن به‌صورت خودکار دریافت می‌شود.
               </div>
             </>
           )}
           {selected && (
-            <div className="order-layout">
-              <section className="menu-browser">
-                <div className="search-box">
+            <div {...ui('order-layout')}>
+              <section {...ui('menu-browser')}>
+                <div {...ui('search-box')}>
                   <Icon name="search" />
                   <input
                     aria-label="جستجوی غذا"
@@ -822,9 +836,9 @@ export default function RestaurantApp() {
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-                <div className="category-tabs">
+                <div {...ui('category-tabs')}>
                   <button
-                    className={category === 'all' ? 'active' : ''}
+                    {...ui(category === 'all' ? 'active' : '')}
                     onClick={() => setCategory('all')}
                   >
                     همه
@@ -832,25 +846,25 @@ export default function RestaurantApp() {
                   {categories.map((c) => (
                     <button
                       key={c.id}
-                      className={category === c.id ? 'active' : ''}
+                      {...ui(category === c.id ? 'active' : '')}
                       onClick={() => setCategory(c.id)}
                     >
                       {c.name}
                     </button>
                   ))}
                 </div>
-                <div className="food-grid">
+                <div {...ui('food-grid')}>
                   {visibleMenu
                     .filter((m) => m.active)
                     .map((item) => (
-                      <article className="food-card" key={item.id}>
+                      <article {...ui('food-card')} key={item.id}>
                         <div
-                          className={
+                          {...ui(
                             'food-symbol category-' +
-                            categories.findIndex(
-                              (c) => c.id === item.categoryId,
-                            )
-                          }
+                              categories.findIndex(
+                                (c) => c.id === item.categoryId,
+                              ),
+                          )}
                         >
                           <Icon
                             name={
@@ -862,8 +876,8 @@ export default function RestaurantApp() {
                           />
                           <small>{item.category.name}</small>
                         </div>
-                        <div className="food-details">
-                          <span className="food-category">
+                        <div {...ui('food-details')}>
+                          <span {...ui('food-category')}>
                             {item.category.name}
                           </span>
                           <h3>{item.name}</h3>
@@ -886,7 +900,7 @@ export default function RestaurantApp() {
                             </button>
                           </div>
                           {!item.available && (
-                            <span className="unavailable">ناموجود</span>
+                            <span {...ui('unavailable')}>ناموجود</span>
                           )}
                         </div>
                       </article>
@@ -899,8 +913,8 @@ export default function RestaurantApp() {
                   />
                 )}
               </section>
-              <aside className="order-ticket">
-                <div className="ticket-heading">
+              <aside {...ui('order-ticket')}>
+                <div {...ui('ticket-heading')}>
                   <div>
                     <h2>سفارش جاری</h2>
                     <span>
@@ -916,9 +930,9 @@ export default function RestaurantApp() {
                   </div>
                   <Icon name="menu" />
                 </div>
-                <div className="ticket-items">
+                <div {...ui('ticket-items')}>
                   {order?.items.map((item) => (
-                    <div className="ticket-item" key={item.id}>
+                    <div {...ui('ticket-item')} key={item.id}>
                       <div>
                         <strong>{item.name}</strong>
                         <span>
@@ -930,7 +944,7 @@ export default function RestaurantApp() {
                         <Badge status={item.status} />
                         {item.status === 'PENDING' &&
                         order.status === 'OPEN' ? (
-                          <div className="quantity">
+                          <div {...ui('quantity')}>
                             <button
                               aria-label={`کاهش تعداد ${item.name}`}
                               disabled={busy || item.quantity <= 1}
@@ -956,14 +970,14 @@ export default function RestaurantApp() {
                             </button>
                           </div>
                         ) : (
-                          <span className="item-count">
+                          <span {...ui('item-count')}>
                             × {number(item.quantity)}
                           </span>
                         )}
                       </div>
                       {item.status === 'READY' && order.status === 'OPEN' && (
                         <button
-                          className="serve-button"
+                          {...ui('serve-button')}
                           disabled={busy}
                           onClick={() => updateItem(item, { status: 'SERVED' })}
                         >
@@ -980,14 +994,14 @@ export default function RestaurantApp() {
                     />
                   )}
                 </div>
-                <div className="ticket-total">
+                <div {...ui('ticket-total')}>
                   <span>مجموع سفارش</span>
                   <strong>
                     {money(total)} <small>تومان</small>
                   </strong>
                 </div>
                 <button
-                  className="primary complete-button"
+                  {...ui('primary complete-button')}
                   disabled={
                     busy ||
                     !order?.items.length ||
@@ -1013,7 +1027,7 @@ export default function RestaurantApp() {
                     ? 'سفارش بسته شده'
                     : 'تکمیل سفارش و آزاد کردن میز'}
                 </button>
-                <p className="ticket-note">
+                <p {...ui('ticket-note')}>
                   بستن سفارش پس از سرو تمام اقلام ممکن است.
                   <br />
                   این بخش شامل پرداخت یا تسویه مالی نیست.
@@ -1022,7 +1036,7 @@ export default function RestaurantApp() {
             </div>
           )}
           {view === 'kitchen' && !selected && (
-            <div className="kitchen-board">
+            <div {...ui('kitchen-board')}>
               {(['PENDING', 'PREPARING', 'READY'] as const).map((status) => {
                 const items = orders.flatMap((o) =>
                   o.items
@@ -1030,14 +1044,14 @@ export default function RestaurantApp() {
                     .map((i) => ({ item: i, order: o })),
                 );
                 return (
-                  <section className="kitchen-column" key={status}>
-                    <div className="column-heading">
+                  <section {...ui('kitchen-column')} key={status}>
+                    <div {...ui('column-heading')}>
                       <Badge status={status} />
                       <span>{number(items.length)}</span>
                     </div>
                     {items.map(({ item, order: o }) => (
-                      <article className="kitchen-card" key={item.id}>
-                        <div className="kitchen-card-top">
+                      <article {...ui('kitchen-card')} key={item.id}>
+                        <div {...ui('kitchen-card-top')}>
                           <strong>میز {number(o.table?.number || 0)}</strong>
                           <span>
                             <Icon name="clock" size={13} />
@@ -1054,9 +1068,9 @@ export default function RestaurantApp() {
                         <small>سفارش #{o.id.slice(-5)}</small>
                         {status !== 'READY' ? (
                           <button
-                            className={
-                              status === 'PENDING' ? 'secondary' : 'primary'
-                            }
+                            {...ui(
+                              status === 'PENDING' ? 'secondary' : 'primary',
+                            )}
                             disabled={busy}
                             onClick={() =>
                               updateItem(
@@ -1080,14 +1094,14 @@ export default function RestaurantApp() {
                             />
                           </button>
                         ) : (
-                          <div className="waiting-serve">
+                          <div {...ui('waiting-serve')}>
                             منتظر تحویل توسط سالن
                           </div>
                         )}
                       </article>
                     ))}
                     {!items.length && (
-                      <div className="column-empty">
+                      <div {...ui('column-empty')}>
                         {status === 'PENDING'
                           ? 'سفارش تازه‌ای در انتظار نیست.'
                           : status === 'PREPARING'
@@ -1102,8 +1116,8 @@ export default function RestaurantApp() {
           )}
           {view === 'menu' && !selected && (
             <>
-              <div className="menu-toolbar">
-                <div className="search-box">
+              <div {...ui('menu-toolbar')}>
+                <div {...ui('search-box')}>
                   <Icon name="search" />
                   <input
                     placeholder="جستجو در منو…"
@@ -1114,8 +1128,8 @@ export default function RestaurantApp() {
                 </div>
                 <span>{number(menu.length)} قلم در منوی رستوران</span>
               </div>
-              <div className="menu-list">
-                <div className="menu-list-header">
+              <div {...ui('menu-list')}>
+                <div {...ui('menu-list-header')}>
                   <span>نام و توضیحات</span>
                   <span>دسته‌بندی</span>
                   <span>قیمت (تومان)</span>
@@ -1123,7 +1137,7 @@ export default function RestaurantApp() {
                   <span />
                 </div>
                 {visibleMenu.map((item) => (
-                  <div className="menu-row" key={item.id}>
+                  <div {...ui('menu-row')} key={item.id}>
                     <div>
                       <strong>{item.name}</strong>
                       <p>{item.description}</p>
@@ -1131,10 +1145,12 @@ export default function RestaurantApp() {
                     <span>{item.category.name}</span>
                     <strong>{money(item.priceRial)}</strong>
                     <span
-                      className={
+                      {...ui(
                         'badge ' +
-                        (item.active && item.available ? 'served' : 'pending')
-                      }
+                          (item.active && item.available
+                            ? 'served'
+                            : 'pending'),
+                      )}
                     >
                       <i />
                       {!item.active
@@ -1144,7 +1160,7 @@ export default function RestaurantApp() {
                           : 'ناموجود'}
                     </span>
                     <button
-                      className="text-button"
+                      {...ui('text-button')}
                       onClick={() => setEditor(item)}
                     >
                       ویرایش
@@ -1155,7 +1171,7 @@ export default function RestaurantApp() {
             </>
           )}
           {view === 'history' && !selected && (
-            <div className="history-list">
+            <div {...ui('history-list')}>
               {!orders.length && (
                 <Empty
                   title="هنوز سفارشی ثبت نشده"
@@ -1165,13 +1181,13 @@ export default function RestaurantApp() {
               {orders.map((o) => (
                 <button
                   key={o.id}
-                  className="history-row"
+                  {...ui('history-row')}
                   onClick={() => {
                     setSelected(o.id);
                     setOrder(o);
                   }}
                 >
-                  <span className="history-icon">
+                  <span {...ui('history-icon')}>
                     <Icon name="menu" />
                   </span>
                   <div>
@@ -1186,9 +1202,9 @@ export default function RestaurantApp() {
                     <small>تومان</small>
                   </strong>
                   <span
-                    className={
-                      'badge ' + (o.status === 'OPEN' ? 'preparing' : 'served')
-                    }
+                    {...ui(
+                      'badge ' + (o.status === 'OPEN' ? 'preparing' : 'served'),
+                    )}
                   >
                     {o.status === 'OPEN' ? 'در حال سرویس' : 'تکمیل شده'}
                   </span>
@@ -1197,7 +1213,7 @@ export default function RestaurantApp() {
               ))}
             </div>
           )}
-          <footer className="workspace-footer">
+          <footer {...ui('workspace-footer')}>
             <span>نارنج، همراه تیم رستوران شما</span>
             <span>RestaurantOS · نسخه اولیه</span>
           </footer>
@@ -1264,16 +1280,16 @@ function MenuEditor({
     });
   }
   return (
-    <div className="modal-backdrop">
+    <div {...ui('modal-backdrop')}>
       <section
-        className="modal"
+        {...ui('modal')}
         role="dialog"
         aria-modal="true"
         aria-labelledby="editor-title"
       >
         <header>
           <div>
-            <span className="eyebrow">منوی رستوران</span>
+            <span {...ui('eyebrow')}>منوی رستوران</span>
             <h2 id="editor-title">
               {initial ? 'ویرایش غذا' : 'افزودن غذای تازه'}
             </h2>
@@ -1300,7 +1316,7 @@ function MenuEditor({
               maxLength={1000}
             />
           </label>
-          <div className="form-grid">
+          <div {...ui('form-grid')}>
             <label>
               دسته‌بندی
               <select
@@ -1328,7 +1344,7 @@ function MenuEditor({
               />
             </label>
           </div>
-          <div className="check-row">
+          <div {...ui('check-row')}>
             <label>
               <input
                 type="checkbox"
@@ -1346,7 +1362,7 @@ function MenuEditor({
               موجود و قابل سفارش
             </label>
           </div>
-          <button className="primary" disabled={busy}>
+          <button {...ui('primary')} disabled={busy}>
             {busy ? 'در حال ذخیره…' : 'ذخیره اطلاعات'}
           </button>
         </form>
@@ -1423,16 +1439,16 @@ function AiPanel({
     }
   }
   return (
-    <div className="modal-backdrop">
+    <div {...ui('modal-backdrop')}>
       <section
-        className="modal ai-modal"
+        {...ui('modal ai-modal')}
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-title"
       >
         <header>
           <div>
-            <span className="eyebrow">
+            <span {...ui('eyebrow')}>
               <Icon name="spark" size={16} />
               دستیار هوشمند
             </span>
@@ -1442,7 +1458,7 @@ function AiPanel({
             ×
           </button>
         </header>
-        <p className="muted">
+        <p {...ui('muted')}>
           غذا را به زبان خودتان توضیح دهید. نام، توضیحات و قیمت پیشنهادی را پیش
           از انتشار بررسی کنید.
         </p>
@@ -1459,15 +1475,15 @@ function AiPanel({
                 required
               />
             </label>
-            <button className="primary" disabled={busy}>
+            <button {...ui('primary')} disabled={busy}>
               {busy ? 'در حال ارسال…' : 'ساخت پیش‌نویس'}
               <Icon name="spark" size={16} />
             </button>
           </form>
         )}
         {draft && ['PENDING', 'PROCESSING'].includes(draft.status) && (
-          <div className="ai-processing">
-            <span className="spinner" />
+          <div {...ui('ai-processing')}>
+            <span {...ui('spinner')} />
             <h3>در حال ساخت پیش‌نویس</h3>
             <p>
               درخواست ذخیره شده است. پس از پردازش، نتیجه اینجا نمایش داده
@@ -1476,14 +1492,14 @@ function AiPanel({
           </div>
         )}
         {draft?.status === 'FAILED' && (
-          <p className="form-error">
+          <p {...ui('form-error')}>
             {errors[draft.errorCode || ''] ||
               'ساخت پیش‌نویس انجام نشد. دوباره تلاش کنید یا غذا را دستی وارد کنید.'}
           </p>
         )}
         {draft?.status === 'READY' && value && (
           <form onSubmit={approve}>
-            <div className="review-note">
+            <div {...ui('review-note')}>
               این اطلاعات هنوز منتشر نشده‌اند. قیمت و جزئیات را بررسی و اصلاح
               کنید.
             </div>
@@ -1506,7 +1522,7 @@ function AiPanel({
                 maxLength={1000}
               />
             </label>
-            <div className="form-grid">
+            <div {...ui('form-grid')}>
               <label>
                 قیمت (تومان)
                 <input
@@ -1535,22 +1551,22 @@ function AiPanel({
                 </select>
               </label>
             </div>
-            <button className="primary" disabled={busy}>
+            <button {...ui('primary')} disabled={busy}>
               تأیید قیمت و انتشار در منو
             </button>
           </form>
         )}
         {draft?.status === 'APPROVED' && (
-          <div className="ai-processing">
+          <div {...ui('ai-processing')}>
             <Icon name="check" size={36} />
             <h3>به منو اضافه شد</h3>
-            <button className="secondary" onClick={onClose}>
+            <button {...ui('secondary')} onClick={onClose}>
               بازگشت به منو
             </button>
           </div>
         )}
         {error && (
-          <p className="form-error" role="alert">
+          <p {...ui('form-error')} role="alert">
             {error}
           </p>
         )}

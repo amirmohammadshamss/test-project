@@ -4,5 +4,8 @@
   "scripts": {
     "dev": "tsc -p ../../tsconfig.json && node --env-file=../../.env --watch ../../dist/apps/worker/src/main.js",
     "start": "node ../../dist/apps/worker/src/main.js"
+  },
+  "nx": {
+    "includedScripts": []
   }
 }

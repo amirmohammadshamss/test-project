@@ -8,4 +8,8 @@
 6. **Pending-draft reconciliation:** persisted requests are repeatedly enqueued with stable BullMQ IDs until terminal. Alternative: transactional outbox. Trade-off: polling recovery and retained queue jobs, not an exactly-once provider call guarantee. Persisted result/application is deduplicated.
 7. **Clean Architecture concentrated in critical workflows:** application ports hide transaction/ORM mechanics. Alternative: full layering for every CRUD field. Trade-off: smaller modules remain pragmatic rather than multiplying files without business value.
 
+8. **Nx over the existing pnpm workspace (user-requested):** explicit project targets orchestrate the existing tools, with local caching for deterministic tasks and no Nx Cloud dependency. Alternative: replace the existing compiler/Jest setup with framework plugins and generated layouts. Trade-off: the backend retains one shared compile owner because both services currently emit into the same `dist` tree; Nx deduplicates that task. Stateful database/queue operations are never cached.
+
+9. **Tailwind-only styling (user-requested):** all visual rules use Tailwind utilities; shared groups and data-attribute variants preserve repeated components and state selectors. Alternative: retain a custom stylesheet or use CSS modules. Trade-off: utility strings are longer, so they are centralized in a small helper; `tailwind-merge` keeps composed overrides predictable. The global CSS file now contains only Tailwind's import.
+
 Reconsider decisions 1 and 5 for the reasons above; they are accepted trade-offs, not claims of proven mistakes.

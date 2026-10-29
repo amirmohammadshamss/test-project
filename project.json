@@ -1,0 +1,75 @@
+{
+  "$schema": "./node_modules/nx/schemas/project-schema.json",
+  "name": "workspace",
+  "projectType": "library",
+  "tags": ["type:tooling"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint ."
+      },
+      "cache": true,
+      "inputs": ["workspaceSources"],
+      "outputs": []
+    },
+    "format-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --check ."
+      },
+      "cache": false
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write ."
+      },
+      "cache": false
+    },
+    "build-backend": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p tsconfig.json"
+      },
+      "cache": true,
+      "inputs": ["backend"],
+      "outputs": ["{workspaceRoot}/dist"],
+      "dependsOn": [
+        {
+          "projects": ["database"],
+          "target": "generate"
+        }
+      ]
+    },
+    "typecheck-backend": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit"
+      },
+      "cache": true,
+      "inputs": ["backend"],
+      "outputs": [],
+      "dependsOn": [
+        {
+          "projects": ["database"],
+          "target": "generate"
+        }
+      ]
+    },
+    "test-integration": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --env-file-if-exists=.env scripts/integration.mjs"
+      },
+      "cache": false,
+      "parallelism": false,
+      "dependsOn": [
+        {
+          "projects": ["database"],
+          "target": "generate"
+        }
+      ]
+    }
+  }
+}

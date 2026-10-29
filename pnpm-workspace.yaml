@@ -8,3 +8,4 @@ onlyBuiltDependencies:
   - prisma
   - esbuild
   - sharp
+  - nx

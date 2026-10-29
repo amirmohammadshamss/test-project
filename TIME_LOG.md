@@ -21,3 +21,7 @@ No browser/host/provider credentials were inferred or fabricated. Outstanding re
 - 08:55 UTC: final lifecycle integration tests (21), formatting, lint and backend compilation passed. Total tested scenarios: 34. Conservative wall elapsed upper bound at this checkpoint: 61 minutes, including waits/interruption; precise active minutes are unavailable.
 
 - 09:13 UTC: continued delivery work. Initial source committed locally; GitHub rejected workflow upload due to missing credential scope. Prepared Docker startup/outage/durability CI and HTTPS configuration. Actual post-commit response-loss plus controlled PostgreSQL restart smoke passed with no duplicates. Hosting integration/authentication remain external dependencies.
+
+- 09:30 UTC: user requested Nx. Added Nx 24.0.2, six explicit projects, cached deterministic tasks, uncached database/integration operations, deduplicated backend compilation, and CI/Docker support. Full local verification passed; repeated build reused 4/5 tasks.
+
+- 10:01 UTC: user requested Tailwind-only styling. Replaced the custom stylesheet with Tailwind utilities and a class-merging helper; all 911 candidates validate. Full Nx check pipeline (34 tests) and production builds passed. Visual browser comparison remains unavailable.

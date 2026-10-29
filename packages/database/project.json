@@ -1,0 +1,33 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "database",
+  "sourceRoot": "packages/database",
+  "projectType": "library",
+  "tags": ["type:data", "platform:node"],
+  "targets": {
+    "generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma generate --schema packages/database/prisma/schema.prisma"
+      },
+      "cache": false
+    },
+    "migrate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prisma migrate deploy --schema packages/database/prisma/schema.prisma"
+      },
+      "cache": false,
+      "parallelism": false
+    },
+    "seed": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --env-file-if-exists=.env --import tsx packages/database/prisma/seed.ts"
+      },
+      "cache": false,
+      "parallelism": false,
+      "dependsOn": ["generate"]
+    }
+  }
+}

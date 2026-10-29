@@ -1,0 +1,63 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "api",
+  "sourceRoot": "apps/api/src",
+  "projectType": "application",
+  "tags": ["type:app", "platform:node"],
+  "implicitDependencies": ["database", "shared"],
+  "targets": {
+    "build": {
+      "executor": "nx:noop",
+      "cache": true,
+      "inputs": ["backend"],
+      "outputs": [],
+      "dependsOn": [
+        {
+          "projects": ["workspace"],
+          "target": "build-backend"
+        }
+      ]
+    },
+    "typecheck": {
+      "executor": "nx:noop",
+      "cache": true,
+      "inputs": ["backend"],
+      "outputs": [],
+      "dependsOn": [
+        {
+          "projects": ["workspace"],
+          "target": "typecheck-backend"
+        }
+      ]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "jest --runInBand --testPathPatterns=apps/api/"
+      },
+      "dependsOn": [
+        {
+          "projects": ["database"],
+          "target": "generate"
+        }
+      ]
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --env-file-if-exists=.env --watch dist/apps/api/src/main.js"
+      },
+      "cache": false,
+      "continuous": true,
+      "dependsOn": ["build"]
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --env-file-if-exists=.env dist/apps/api/src/main.js"
+      },
+      "cache": false,
+      "continuous": true
+    }
+  }
+}

@@ -5,3 +5,4 @@ dist
 coverage
 rfp.md
 **/next-env.d.ts
+.nx

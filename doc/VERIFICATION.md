@@ -71,3 +71,23 @@ Full local Nx verification passes with 13 unit tests and 43 real PostgreSQL/Redi
 See [REALTIME.md](./REALTIME.md) for architecture, primary references and limits. Local Next relay transport is long-polling; the API's WebSocket transport is verified directly. Caddy's HTTPS WebSocket upgrade forwarding is configured but unverified in Docker/hosting. No outbox, Redis adapter, cross-instance delivery or capacity guarantee is claimed. Latest logs: `/tmp/restaurantos-realtime-final-verify.log` and `/tmp/restaurantos-realtime-browser.log`.
 
 The restarted local demo additionally passed standard-client Socket.IO polling through Next, direct WebSocket connection to Nest, and logout-driven disconnection of both transports. Next's Socket.IO trailing-slash redirect was corrected and covered through the real browser-server test setup. Final lint/format/whitespace checks pass; no runtime Docker/TLS upgrade claim is added.
+
+## Central notification verification
+
+Full local Nx verification and Chromium workflow suite passed after the notification expansion. Coverage includes recipient/tenant/branch ownership, private and platform socket namespaces, restricted suspension notices, stable outbox deduplication, rollback, ready/preparation/cancellation routing, requesting-manager AI failure, delayed-order/retention behavior, read/ack persistence, session revocation, encrypted subscription registration and bounded real-Redis retry processing. Browser checks cover the persistent center, mobile layout, platform separation and suspended-manager access. Push HTTP sender outcomes are injected; no real browser push service or OS display is claimed. HTTPS/device acceptance remains pending operator configuration.
+
+Final local smoke: restarted API, worker, restaurant web and platform web. Authenticated notification list/count/preferences/device endpoints returned successfully through the restaurant frontend for manager, kitchen and waiter; each test session was logged out. All four migrations also applied successfully to a newly created isolated local database, with existing databases preserved.
+
+## AI strategy Phase 1 verification
+
+Full local Nx verification: 20 unit and 60 integration tests, plus production builds. Chromium: 9 workflows, including request persistence, saved-draft reopening, explicit corrected-price publication and reload. Fresh isolated database: all five migrations apply. Tests cover real Redis recovery, tenant-scoped history/metrics, concurrent daily limits, replay, private completion, usage persistence, missing authorization and retention. Provider tests cover strict OpenAI/Ollama schemas, missing eligibility, invalid prices/refusal and oversized output. These are injected provider responses; no live model quality, billed cost or staff time-saving result is claimed.
+
+## Manager assistant Phase 2 slice
+
+Full local checks now cover 23 unit tests and 63 PostgreSQL/Redis integration tests. Chromium passes 10 workflows, including persistent manager questions, scoped factual results, reload recovery and mobile overflow. All six migrations apply from scratch to an isolated local database. New checks cover strict tool schemas, Tehran/Saturday windows, tenant and same-tenant manager privacy, branch isolation, cancelled-line exclusion, shared quota/replay, actual Redis retry, lost-lease fencing, exhausted-attempt deduplication and retention. The evaluation command refuses to invoke a model without opt-in. Provider responses remain fixtures; no live question-routing accuracy or time-saving result is claimed.
+
+Final local smoke after restart: manager access to saved AI analyses/history succeeded through the restaurant frontend; waiter and kitchen access was denied. Notification and existing AI draft endpoints retained their expected role restrictions. All smoke sessions were logged out. No provider inference was invoked.
+
+## Assessment hardening verification
+
+Full pipeline passed: 25 unit tests, 66 database/Redis integration tests, TypeScript, lint, formatting and all production builds. Chromium passed 10 workflows, including kitchen instruction entry/display. New checks cover per-account proxy throttling, separate authenticated AI identities, ignored spoofed forwarded headers, provider-aware smoke policy, safe error diagnostics, instruction validation, immutable snapshots and idempotent replay. All seven migrations applied on a fresh isolated database. The seed produced 126 orders/366 lines/368 events plus useful labeled notifications and AI fixtures; two reruns preserved counts and reviewer edits/read state. No live model was called.

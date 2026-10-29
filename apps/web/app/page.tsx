@@ -1,4 +1,5 @@
 'use client';
+import { NotificationCenter } from '../../../packages/ui/src/notification-center';
 import { useRestaurantRealtime } from '../lib/realtime';
 import { ui } from '../lib/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -163,6 +164,12 @@ function Empty({ title, description }: { title: string; description: string }) {
   );
 }
 export default function RestaurantApp() {
+  const [suspended, setSuspended] = useState<{
+    userId: string;
+    tenantId: string;
+    branchId: string;
+    sessionId: string;
+  } | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [booting, setBooting] = useState(true);
   const [view, setView] = useState<View>('tables');
@@ -181,6 +188,7 @@ export default function RestaurantApp() {
   const [online, setOnline] = useState(true);
   const [updated, setUpdated] = useState<Date | null>(null);
   const [search, setSearch] = useState('');
+  const [lineNotes, setLineNotes] = useState<Record<string, string>>({});
   const [cancelTarget, setCancelTarget] = useState<{
     id: string;
     itemId?: string;
@@ -265,7 +273,17 @@ export default function RestaurantApp() {
           setSelected(deepOrder);
         setView(user.role === 'KITCHEN' ? 'kitchen' : 'tables');
       })
-      .catch(() => {})
+      .catch((e) => {
+        if (e instanceof ApiError && e.code === 'TENANT_SUSPENDED')
+          void api<{
+            userId: string;
+            tenantId: string;
+            branchId: string;
+            sessionId: string;
+          }>('/notifications/context')
+            .then(setSuspended)
+            .catch(() => {});
+      })
       .finally(() => setBooting(false));
   }, []);
   useEffect(() => {
@@ -277,6 +295,15 @@ export default function RestaurantApp() {
       } catch (e) {
         if (!active) return;
         setOnline(false);
+        if (e instanceof ApiError && e.code === 'TENANT_SUSPENDED')
+          void api<{
+            userId: string;
+            tenantId: string;
+            branchId: string;
+            sessionId: string;
+          }>('/notifications/context')
+            .then(setSuspended)
+            .catch(() => {});
         if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
           setMe(null);
           setError('نشست شما تمام شده است. دوباره وارد شوید.');
@@ -301,6 +328,15 @@ export default function RestaurantApp() {
         .then(apply)
         .catch((e) => {
           setOnline(false);
+          if (e instanceof ApiError && e.code === 'TENANT_SUSPENDED')
+            void api<{
+              userId: string;
+              tenantId: string;
+              branchId: string;
+              sessionId: string;
+            }>('/notifications/context')
+              .then(setSuspended)
+              .catch(() => {});
           if (e instanceof ApiError && (e.status === 401 || e.status === 403))
             setMe(null);
         });
@@ -412,15 +448,22 @@ export default function RestaurantApp() {
     setSelected(null);
     setOrder(null);
     setSearch('');
+    setLineNotes({});
     setCategory('all');
     setError('');
   };
+  useEffect(() => setLineNotes({}), [selected]);
   const add = (item: Menu) =>
-    act(() =>
-      api<Order>(`/orders/${selected}/items`, 'POST', {
-        menuItemId: item.id,
-        quantity: 1,
-      }),
+    act(
+      () =>
+        api<Order>(`/orders/${selected}/items`, 'POST', {
+          menuItemId: item.id,
+          quantity: 1,
+          ...(lineNotes[item.id]?.trim()
+            ? { notes: lineNotes[item.id].trim() }
+            : {}),
+        }),
+      () => setLineNotes((current) => ({ ...current, [item.id]: '' })),
     );
   const updateItem = (
     item: Order['items'][number],
@@ -442,6 +485,39 @@ export default function RestaurantApp() {
         <Brand />
         <p>در حال آماده‌سازی محیط کار…</p>
       </div>
+    );
+  if (suspended)
+    return (
+      <main className="mx-auto grid max-w-lg gap-5 p-8">
+        <h1 className="text-xl font-bold">دسترسی رستوران تعلیق شده است</h1>
+        <p>
+          فقط اعلان مربوط به تعلیق در دسترس است؛ برای بررسی با مدیر سامانه تماس
+          بگیرید.
+        </p>
+        <button
+          className="rounded border p-3"
+          onClick={() => window.location.reload()}
+        >
+          بررسی دوباره دسترسی
+        </button>
+        <NotificationCenter
+          key={JSON.stringify(suspended)}
+          scopeKey={JSON.stringify(suspended)}
+          role="MANAGER"
+          restricted
+        />
+        <button
+          className="rounded border p-3"
+          onClick={() =>
+            void api('/auth/logout', 'POST').then(() => {
+              setSuspended(null);
+              setMe(null);
+            })
+          }
+        >
+          خروج
+        </button>
+      </main>
     );
   if (!me)
     return (
@@ -609,6 +685,11 @@ export default function RestaurantApp() {
       </aside>
       <main {...ui('main')}>
         <header {...ui('topbar')}>
+          <NotificationCenter
+            key={`${me.userId}:${me.tenantId}:${me.branchId}:${me.sessionId}`}
+            scopeKey={`${me.userId}:${me.tenantId}:${me.branchId}:${me.sessionId}`}
+            role={me.role}
+          />
           <span
             role="status"
             data-realtime-state={
@@ -987,6 +1068,22 @@ export default function RestaurantApp() {
                               <Icon name="plus" />
                             </button>
                           </div>
+                          <label className="mt-2 grid gap-1 text-xs text-slate-600">
+                            توضیح آشپزخانه برای {item.name}
+                            <input
+                              className="min-h-10 rounded border bg-white p-2"
+                              maxLength={200}
+                              disabled={busy || order?.status !== 'OPEN'}
+                              value={lineNotes[item.id] || ''}
+                              onChange={(e) =>
+                                setLineNotes((current) => ({
+                                  ...current,
+                                  [item.id]: e.target.value,
+                                }))
+                              }
+                              placeholder="مثلاً بدون قارچ؛ برای هر ردیف جدا ثبت کنید"
+                            />
+                          </label>
                           {!item.available && (
                             <span {...ui('unavailable')}>ناموجود</span>
                           )}
@@ -1023,6 +1120,11 @@ export default function RestaurantApp() {
                     <div {...ui('ticket-item')} key={item.id}>
                       <div>
                         <strong>{item.name}</strong>
+                        {item.notes && (
+                          <p className="mt-1 rounded bg-amber-50 p-2 text-sm text-amber-950">
+                            توضیح آشپزخانه: {item.notes}
+                          </p>
+                        )}
                         <span>
                           {money(item.priceRial * item.quantity)}{' '}
                           <small>تومان</small>
@@ -1319,6 +1421,11 @@ export default function RestaurantApp() {
                         <h3>
                           <span>{number(item.quantity)}×</span> {item.name}
                         </h3>
+                        {item.notes && (
+                          <p className="my-2 rounded bg-amber-50 p-2 text-sm text-amber-950">
+                            توضیح آشپزخانه: {item.notes}
+                          </p>
+                        )}
                         <small>سفارش #{o.id.slice(-5)}</small>
                         {status !== 'READY' ? (
                           <button

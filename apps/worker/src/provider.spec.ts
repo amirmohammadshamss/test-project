@@ -36,7 +36,7 @@ test('provider uses strict schema and returns validated draft without publishing
 test('missing provider configuration fails clearly without a request', async () => {
   delete process.env.OPENAI_API_KEY;
   const mock = jest.spyOn(globalThis, 'fetch');
-  await expect(new OpenAiMenuParser().parse('برگر')).rejects.toThrow(
+  await expect(new OpenAiMenuParser().parse('برگر تست')).rejects.toThrow(
     'AI_NOT_CONFIGURED',
   );
   expect(mock).not.toHaveBeenCalled();
@@ -46,11 +46,11 @@ test('temporary and permanent HTTP failures are distinguishable', async () => {
   const mock = jest
     .spyOn(globalThis, 'fetch')
     .mockResolvedValue(new Response('', { status: 429 }));
-  await expect(new OpenAiMenuParser().parse('برگر')).rejects.toThrow(
+  await expect(new OpenAiMenuParser().parse('برگر تست')).rejects.toThrow(
     'AI_PROVIDER_TEMPORARY',
   );
   mock.mockResolvedValue(new Response('', { status: 401 }));
-  await expect(new OpenAiMenuParser().parse('برگر')).rejects.toThrow(
+  await expect(new OpenAiMenuParser().parse('برگر تست')).rejects.toThrow(
     'AI_PROVIDER_REJECTED',
   );
 });
@@ -64,7 +64,7 @@ test('refusals and invalid monetary output cannot become a valid draft', async (
       ],
     }),
   );
-  await expect(new OpenAiMenuParser().parse('برگر')).rejects.toThrow(
+  await expect(new OpenAiMenuParser().parse('برگر تست')).rejects.toThrow(
     'AI_REFUSED',
   );
   mock.mockResolvedValue(
@@ -83,7 +83,66 @@ test('refusals and invalid monetary output cannot become a valid draft', async (
       ],
     }),
   );
-  await expect(new OpenAiMenuParser().parse('برگر')).rejects.toThrow(
+  await expect(new OpenAiMenuParser().parse('برگر تست')).rejects.toThrow(
     'AI_INVALID_OUTPUT',
   );
+});
+
+test('Ollama uses schema-constrained local inference and reports provider token counts', async () => {
+  const { OllamaMenuParser } = await import('./provider');
+  process.env.OLLAMA_MODEL = 'test-model';
+  const mock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+    Response.json({
+      done: true,
+      message: {
+        content: JSON.stringify({ ...result, category: 'غذاهای ایرانی' }),
+      },
+      prompt_eval_count: 45,
+      eval_count: 20,
+    }),
+  );
+  const usage = jest.fn();
+  try {
+    expect(
+      (await new OllamaMenuParser().parse('کباب ۴۵۰ هزار تومان', usage))
+        .category,
+    ).toBe('غذاهای ایرانی');
+    expect(usage).toHaveBeenCalledWith({
+      provider: 'ollama',
+      model: 'test-model',
+      inputTokens: 45,
+      outputTokens: 20,
+    });
+    const body = JSON.parse(String(mock.mock.calls[0][1]?.body));
+    expect(body.stream).toBe(false);
+    expect(body.format.additionalProperties).toBe(false);
+    expect(body.options.num_predict).toBe(600);
+  } finally {
+    delete process.env.OLLAMA_MODEL;
+  }
+});
+test('provider selection fails closed and oversized output is rejected', async () => {
+  const { configuredMenuParser } = await import('./provider');
+  const old = process.env.AI_PROVIDER;
+  const eligibility = process.env.AI_PROVIDER_ELIGIBILITY_CONFIRMED;
+  try {
+    process.env.AI_PROVIDER = 'openai';
+    delete process.env.AI_PROVIDER_ELIGIBILITY_CONFIRMED;
+    await expect(
+      configuredMenuParser().parse('کباب ۳۸۰ هزار تومان'),
+    ).rejects.toThrow('AI_PROVIDER_NOT_ELIGIBLE');
+    process.env.OPENAI_API_KEY = 'test';
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('a'.repeat(65537)));
+    await expect(
+      new OpenAiMenuParser().parse('کباب ۳۸۰ هزار تومان'),
+    ).rejects.toThrow('AI_OUTPUT_TOO_LARGE');
+  } finally {
+    if (old === undefined) delete process.env.AI_PROVIDER;
+    else process.env.AI_PROVIDER = old;
+    if (eligibility === undefined)
+      delete process.env.AI_PROVIDER_ELIGIBILITY_CONFIRMED;
+    else process.env.AI_PROVIDER_ELIGIBILITY_CONFIRMED = eligibility;
+  }
 });

@@ -47,6 +47,9 @@ enum DraftStatus {
 }
 
 model Restaurant {
+  notifications        Notification[]
+  notificationOutbox   NotificationOutbox[]
+  pushSubscriptions    PushSubscription[]
   id                   String                 @id @default(uuid()) @db.Uuid
   name                 String
   status               TenantStatus           @default(ACTIVE)
@@ -65,46 +68,57 @@ model Restaurant {
   categories           Category[]
   menuItems            MenuItem[]
   drafts               AiDraft[]
+  analyses             AiAnalysis[]
   adminAuditLogs       AdminAuditLog[]
   lifecycleEvents      TenantLifecycleEvent[]
 }
 
 model Branch {
-  id         String             @id @default(uuid()) @db.Uuid
-  tenantId   String             @db.Uuid
-  name       String
-  active     Boolean            @default(true)
-  createdAt  DateTime           @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime           @default(now()) @updatedAt @db.Timestamptz(3)
-  restaurant Restaurant         @relation(fields: [tenantId], references: [id])
-  access     BranchMembership[]
-  tables     RestaurantTable[]
+  analyses          AiAnalysis[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String             @db.Uuid
+  name              String
+  active            Boolean            @default(true)
+  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime           @default(now()) @updatedAt @db.Timestamptz(3)
+  restaurant        Restaurant         @relation(fields: [tenantId], references: [id])
+  access            BranchMembership[]
+  tables            RestaurantTable[]
 
   @@unique([tenantId, id])
 }
 
 model User {
-  id                 String              @id @default(uuid()) @db.Uuid
-  email              String              @unique
-  name               String
-  passwordHash       String
-  active             Boolean             @default(true)
-  restaurantSessions RestaurantSession[]
-  platformAdmin      PlatformAdmin?
-  memberships        Membership[]
-  adminAuditLogs     AdminAuditLog[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
+  pushSubscriptions       PushSubscription[]
+  id                      String                   @id @default(uuid()) @db.Uuid
+  email                   String                   @unique
+  name                    String
+  passwordHash            String
+  active                  Boolean                  @default(true)
+  restaurantSessions      RestaurantSession[]
+  platformAdmin           PlatformAdmin?
+  memberships             Membership[]
+  adminAuditLogs          AdminAuditLog[]
 }
 
 model Membership {
-  id         String             @id @default(uuid()) @db.Uuid
-  tenantId   String             @db.Uuid
-  userId     String             @db.Uuid
-  role       Role
-  active     Boolean            @default(true)
-  restaurant Restaurant         @relation(fields: [tenantId], references: [id])
-  user       User               @relation(fields: [userId], references: [id])
-  branches   BranchMembership[]
+  analyses          AiAnalysis[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
+  id                String             @id @default(uuid()) @db.Uuid
+  tenantId          String             @db.Uuid
+  userId            String             @db.Uuid
+  role              Role
+  active            Boolean            @default(true)
+  restaurant        Restaurant         @relation(fields: [tenantId], references: [id])
+  user              User               @relation(fields: [userId], references: [id])
+  branches          BranchMembership[]
 
+  @@unique([tenantId, id, userId])
   @@unique([tenantId, userId])
   @@unique([tenantId, id])
 }
@@ -188,9 +202,12 @@ model Order {
 
   @@unique([tenantId, branchId, id])
   @@index([tenantId, branchId, status])
+  @@index([tenantId, branchId, completedAt])
+  @@index([tenantId, branchId, cancelledAt])
 }
 
 model OrderItem {
+  notes                   String     @default("")
   cancelledAt             DateTime?  @db.Timestamptz(3)
   cancelledBy             String?    @db.Uuid
   cancellationReason      String?
@@ -210,6 +227,7 @@ model OrderItem {
   menuItem                MenuItem   @relation(fields: [tenantId, menuItemId], references: [tenantId, id])
 
   @@index([tenantId, branchId, status])
+  @@index([tenantId, branchId, cancelledAt])
 }
 
 model OrderEvent {
@@ -240,27 +258,38 @@ model IdempotencyRecord {
 }
 
 model AiDraft {
-  id         String      @id @default(uuid()) @db.Uuid
-  tenantId   String      @db.Uuid
-  actorId    String      @db.Uuid
-  input      String
-  status     DraftStatus @default(PENDING)
-  result     Json?
-  errorCode  String?
-  attempts   Int         @default(0)
-  leaseUntil DateTime?   @db.Timestamptz(3)
-  leaseToken String?
-  menuItemId String?     @unique @db.Uuid
-  createdAt  DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime    @updatedAt @db.Timestamptz(3)
-  restaurant Restaurant  @relation(fields: [tenantId], references: [id])
-  menuItem   MenuItem?   @relation(fields: [tenantId, menuItemId], references: [tenantId, id])
+  id           String      @id @default(uuid()) @db.Uuid
+  tenantId     String      @db.Uuid
+  actorId      String      @db.Uuid
+  input        String
+  provider     String?
+  model        String?
+  inputTokens  Int         @default(0)
+  outputTokens Int         @default(0)
+  usageSamples Int         @default(0)
+  processingMs Int         @default(0)
+  approvedAt   DateTime?   @db.Timestamptz(3)
+  corrected    Boolean?
+  status       DraftStatus @default(PENDING)
+  result       Json?
+  errorCode    String?
+  attempts     Int         @default(0)
+  leaseUntil   DateTime?   @db.Timestamptz(3)
+  leaseToken   String?
+  menuItemId   String?     @unique @db.Uuid
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @db.Timestamptz(3)
+  restaurant   Restaurant  @relation(fields: [tenantId], references: [id])
+  menuItem     MenuItem?   @relation(fields: [tenantId, menuItemId], references: [tenantId, id])
 
   @@unique([tenantId, menuItemId])
   @@index([tenantId, status])
+  @@index([tenantId, createdAt])
 }
 
 model PlatformAdmin {
+  notifications      Notification[]
+  pushSubscriptions  PushSubscription[]
   id                 String                      @id @default(uuid()) @db.Uuid
   userId             String                      @unique @db.Uuid
   active             Boolean                     @default(true)
@@ -268,6 +297,8 @@ model PlatformAdmin {
   user               User                        @relation(fields: [userId], references: [id])
   sessions           PlatformSession[]
   idempotencyRecords PlatformIdempotencyRecord[]
+
+  @@unique([id, userId])
 }
 
 model PlatformSession {
@@ -343,4 +374,184 @@ model RestaurantSession {
   user         User      @relation(fields: [userId], references: [id])
 
   @@index([expiresAt])
+}
+
+enum NotificationRealm {
+  RESTAURANT
+  PLATFORM
+}
+
+enum NotificationType {
+  NEW_ORDER
+  ITEM_READY
+  ORDER_CANCELLED
+  PREPARATION_CHANGED
+  ORDER_DELAYED
+  AI_FAILED
+  AI_READY
+  ANALYSIS_READY
+  ANALYSIS_FAILED
+  TENANT_SUSPENDED
+  PLATFORM_ISSUE
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model NotificationOutbox {
+  id            String            @id @default(uuid()) @db.Uuid
+  dedupeKey     String            @unique
+  realm         NotificationRealm
+  type          NotificationType
+  tenantId      String?           @db.Uuid
+  branchId      String?           @db.Uuid
+  entityId      String            @db.Uuid
+  payload       Json
+  attempts      Int               @default(0)
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+  processedAt   DateTime?         @db.Timestamptz(3)
+  failedAt      DateTime?         @db.Timestamptz(3)
+  nextAttemptAt DateTime          @default(now()) @db.Timestamptz(3)
+  errorCode     String?
+  tenant        Restaurant?       @relation(fields: [tenantId], references: [id])
+  notifications Notification[]
+
+  @@index([processedAt, failedAt, nextAttemptAt, createdAt])
+}
+
+model Notification {
+  id              String                 @id @default(uuid()) @db.Uuid
+  realm           NotificationRealm
+  tenantId        String?                @db.Uuid
+  branchId        String?                @db.Uuid
+  membershipId    String?                @db.Uuid
+  platformAdminId String?                @db.Uuid
+  recipientId     String                 @db.Uuid
+  eventId         String                 @db.Uuid
+  type            NotificationType
+  priority        NotificationPriority
+  title           String
+  message         String
+  entityType      String
+  entityId        String                 @db.Uuid
+  createdAt       DateTime               @default(now()) @db.Timestamptz(3)
+  expiresAt       DateTime               @db.Timestamptz(3)
+  readAt          DateTime?              @db.Timestamptz(3)
+  acknowledgedAt  DateTime?              @db.Timestamptz(3)
+  version         Int                    @default(1)
+  event           NotificationOutbox     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user            User                   @relation(fields: [recipientId], references: [id])
+  tenant          Restaurant?            @relation(fields: [tenantId], references: [id])
+  branch          Branch?                @relation(fields: [tenantId, branchId], references: [tenantId, id])
+  membership      Membership?            @relation(fields: [tenantId, membershipId, recipientId], references: [tenantId, id, userId])
+  platformAdmin   PlatformAdmin?         @relation(fields: [platformAdminId, recipientId], references: [id, userId])
+  deliveries      NotificationDelivery[]
+
+  @@unique([eventId, realm, recipientId, type])
+  @@index([recipientId, realm, tenantId, branchId, createdAt, id])
+  @@index([expiresAt])
+}
+
+model NotificationPreference {
+  id           String             @id @default(uuid()) @db.Uuid
+  userId       String             @db.Uuid
+  scopeKey     String
+  pushEnabled  Boolean            @default(false)
+  soundEnabled Boolean            @default(false)
+  includeLow   Boolean            @default(true)
+  categories   NotificationType[]
+  updatedAt    DateTime           @default(now()) @updatedAt @db.Timestamptz(3)
+  user         User               @relation(fields: [userId], references: [id])
+
+  @@unique([userId, scopeKey])
+}
+
+model PushSubscription {
+  id              String                 @id @default(uuid()) @db.Uuid
+  endpointHash    String                 @unique
+  encrypted       String
+  realm           NotificationRealm
+  userId          String                 @db.Uuid
+  tenantId        String?                @db.Uuid
+  branchId        String?                @db.Uuid
+  membershipId    String?                @db.Uuid
+  platformAdminId String?                @db.Uuid
+  sessionId       String                 @db.Uuid
+  deviceLabel     String
+  active          Boolean                @default(true)
+  createdAt       DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime               @default(now()) @updatedAt @db.Timestamptz(3)
+  revokedAt       DateTime?              @db.Timestamptz(3)
+  user            User                   @relation(fields: [userId], references: [id])
+  tenant          Restaurant?            @relation(fields: [tenantId], references: [id])
+  branch          Branch?                @relation(fields: [tenantId, branchId], references: [tenantId, id])
+  membership      Membership?            @relation(fields: [tenantId, membershipId, userId], references: [tenantId, id, userId])
+  platformAdmin   PlatformAdmin?         @relation(fields: [platformAdminId, userId], references: [id, userId])
+  deliveries      NotificationDelivery[]
+
+  @@index([userId, realm, tenantId, branchId, active])
+}
+
+model NotificationDelivery {
+  id             String           @id @default(uuid()) @db.Uuid
+  notificationId String           @db.Uuid
+  subscriptionId String           @db.Uuid
+  status         DeliveryStatus   @default(PENDING)
+  attempts       Int              @default(0)
+  nextAttemptAt  DateTime         @default(now()) @db.Timestamptz(3)
+  leaseUntil     DateTime?        @db.Timestamptz(3)
+  leaseToken     String?          @db.Uuid
+  errorCode      String?
+  sentAt         DateTime?        @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  notification   Notification     @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  subscription   PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, subscriptionId])
+  @@index([status, nextAttemptAt])
+}
+
+model NotificationMonitorState {
+  key       String   @id
+  unhealthy Boolean
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+}
+
+model AiAnalysis {
+  id           String      @id @default(uuid()) @db.Uuid
+  tenantId     String      @db.Uuid
+  branchId     String      @db.Uuid
+  actorId      String      @db.Uuid
+  membershipId String      @db.Uuid
+  question     String
+  status       DraftStatus @default(PENDING)
+  result       Json?
+  errorCode    String?
+  attempts     Int         @default(0)
+  leaseUntil   DateTime?   @db.Timestamptz(3)
+  leaseToken   String?
+  provider     String?
+  model        String?
+  inputTokens  Int         @default(0)
+  outputTokens Int         @default(0)
+  processingMs Int         @default(0)
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @db.Timestamptz(3)
+  restaurant   Restaurant  @relation(fields: [tenantId], references: [id])
+  branch       Branch      @relation(fields: [tenantId, branchId], references: [tenantId, id])
+  membership   Membership  @relation(fields: [tenantId, membershipId, actorId], references: [tenantId, id, userId])
+
+  @@index([tenantId, branchId, actorId, createdAt])
+  @@index([status, leaseUntil])
 }

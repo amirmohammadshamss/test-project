@@ -69,7 +69,7 @@ No Redis adapter is added, and BullMQ remains AI processing only. Merely install
 - [x] Exercise actual Socket.IO security/delivery and simultaneous browser staff workflows.
 - [ ] Verify the configured HTTPS/Caddy WebSocket upgrade path on a Docker-enabled host.
 - [ ] Add multi-instance coordination/Redis adapter only when deploying multiple API instances.
-- [ ] Add a transactional outbox only when durable delivery requirements justify it.
+- [x] Centralized persistent notifications subsequently added a transactional outbox; see NOTIFICATIONS.md. The original lightweight board invalidations still recover through authoritative refetching.
 
 ## Primary references
 

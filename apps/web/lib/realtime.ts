@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { notificationEventNames } from '../../../packages/shared/src/notifications';
 import { io } from 'socket.io-client';
 import { restaurantEventNames } from '../../../packages/shared/src/realtime';
 import type { OrderNotification } from '../../../packages/shared/src/realtime';
@@ -35,6 +36,11 @@ export function useRestaurantRealtime(
         setConnected(true);
         versions.clear();
         refresh();
+        window.dispatchEvent(
+          new CustomEvent('restaurantos-notification', {
+            detail: { name: 'sync' },
+          }),
+        );
       }
     });
     socket.on('disconnect', () => {
@@ -60,6 +66,14 @@ export function useRestaurantRealtime(
         versions.set(key, event.version);
         refresh();
       });
+    for (const name of notificationEventNames)
+      socket.on(name, (payload) =>
+        window.dispatchEvent(
+          new CustomEvent('restaurantos-notification', {
+            detail: { name, payload },
+          }),
+        ),
+      );
     socket.connect();
     return () => {
       active = false;

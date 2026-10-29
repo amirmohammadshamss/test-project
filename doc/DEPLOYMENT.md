@@ -1,63 +1,55 @@
-# Deployment runbook
+# Deployment and operator runbook
 
-## Prepared, not deployed
+## Current verification boundary
 
-The workspace has no configured hosting account/target or OpenAI credential. The available Sites runtime uses Cloudflare Workers and cannot run the existing NestJS/PostgreSQL-TCP/BullMQ stack unchanged. Do not replace the existing backend with a static imitation. Use a VM/container host with PostgreSQL/Redis networking instead. No new paid resources were provisioned.
+Local API/worker/frontends, real PostgreSQL/Redis checks and Chromium workflows pass. Public HTTPS hosting, Docker/Compose runtime, remote CI for the final commit, live AI quality, physical-device Push, backup restoration and a narrated recording remain unverified. No hostname or compatible host account is configured here. Available static/Workers hosting cannot run this NestJS/PostgreSQL/BullMQ stack unchanged; no static imitation or paid host was provisioned.
 
-## Single-host deployment
+## Reproducible local demo
 
-1. Provision a Linux container host in a region where outbound provider access/account use is supported. Configure DNS and backups. Verify requirements with the host/provider; no regional availability claim is made here.
-2. Install Docker/Compose from the official vendor and clone this repository.
-3. Configure `.env`: strong random `JWT_SECRET`, URL-safe `POSTGRES_PASSWORD`, separate demo password, `WEB_ORIGIN=https://your-domain`, `COOKIE_SECURE=true`, and an optional server-side `OPENAI_API_KEY`/`OPENAI_MODEL`.
-4. Run `docker compose up --build -d`. The initialization service applies migrations and idempotent demo seed. For a real installation, replace demo seeding with explicit owner onboarding and remove demo memberships.
-5. Set `PUBLIC_HOSTNAME` to the actual DNS hostname pointing to this server, allow incoming ports 80/443, then run `docker compose -f docker-compose.yml -f docker-compose.https.yml up --build -d`. The supplied Caddy reverse proxy provisions TLS for that hostname; the override forces HTTPS origin and Secure cookies. Web port 3000 is bound only to localhost, and database/Redis/API ports remain internal. Preserve Caddy data/config volumes across updates. A hostname, reachable server and successful certificate issuance are still prerequisites; writing this config does not prove HTTPS deployment.
-6. Verify `/api/v1/health`, `/api/v1/health/ready`, browser login/cookie settings, isolation tests, waiter/kitchen behavior, and real AI draft/approval. Inspect logs for failures without exposing credentials.
-7. Back up PostgreSQL and test restoration. Persist Redis data for prompt queue recovery; pending database requests also recover after queue loss, within persisted attempt limits.
+Install Node 22+, pnpm 10.32.1 and Docker with Compose, then run `pnpm demo:up` from the repository root. It checks Docker, creates an ignored demo `.env` only when missing, starts Compose and waits for readiness. Existing environment values and volumes are preserved; review targets before use. Manual PostgreSQL/Redis setup and credentials are in [README.md](README.md).
+
+The initializer applies migrations and seeds two fictional restaurants, distinct menus, thirty days of shift history, active work, audit events and clearly labeled fixed AI examples. Reseeding preserves existing order/menu edits and notification state; demo passwords/roles and base restaurant names are restored. Do not mix real customer data with demo data. Production onboarding must replace demo seeding and remove demo memberships.
+
+## Single-host HTTPS deployment
+
+1. Use a compatible Linux container host with PostgreSQL/Redis networking and an actual DNS hostname. Verify provider eligibility for the serving market; relocating a worker is not itself proof of service eligibility.
+2. Install Docker/Compose, check out the exact submitted commit, and configure ignored server secrets: strong random `JWT_SECRET`, URL-safe `POSTGRES_PASSWORD`, demo/reviewer password and `PUBLIC_HOSTNAME`. Set `WEB_ORIGIN=https://your-hostname` and `COOKIE_SECURE=true`. Never commit `.env` or keys.
+3. Start with `docker compose -f docker-compose.yml -f docker-compose.https.yml up --build -d`. The initializer migrates/seeds before API/worker start. Caddy needs reachable ports 80/443 and successful certificate issuance; preserve its data/config volumes. API, database and Redis are internal. Do not expose database or API ports directly.
+4. Leave `PLATFORM_ADMIN_ENABLED=false` and the `platform` Compose profile disabled for public deployment. Caddy returns 404 for platform APIs. The separate password-only platform UI is a restricted nonproduction prototype; real privileged use requires MFA/onboarding and access controls.
+5. Verify health/readiness through the public hostname, secure cookie flags, exact origins, independent staff logins, cross-tenant/branch rejection, and the complete waiter/kitchen flow. Test a correction, a kitchen instruction, concurrent additions and uncertain-response retry. Verify real Caddy WebSocket upgrade; local Next proxies relay polling only.
+6. Configure one eligible AI provider or self-hosted model according to [AI_STRATEGY.md](AI_STRATEGY.md). AI defaults to disabled. Run the explicit opt-in evaluation commands, then review and approve one real generated draft. A fixed seeded example must never be used as live-inference evidence.
+7. Configure optional VAPID/encryption secrets and verify supported devices separately according to [NOTIFICATIONS.md](NOTIFICATIONS.md). Ordering must remain usable when Redis, AI or Push is unavailable.
+8. Run backup restoration into an isolated database and verify restored business state and access. Set a measured recovery procedure and retain previous images. A successful PostgreSQL restart is durability evidence, not a backup-restore test.
+
+## Smoke and acceptance commands
+
+`node --env-file=.env scripts/smoke.mjs` performs a real demo order lifecycle. It uses explicit `AI_PROVIDER` configuration to check either a READY result or the expected disabled/missing-configuration failure. For an ordering-only check use `SMOKE_SKIP_AI=1`; do not claim provider success from key presence. The check creates data and uses the shared daily AI quota. Against a separately configured host, set `SMOKE_URL` and the exact browser origin.
+
+`scripts/fault-smoke.mjs` tests loss of a committed HTTP response and replay. Its Compose PostgreSQL restart is allowed only against a disposable stack. Do not restart or remove real customer databases to run a smoke test.
+
+`pnpm verify` covers source checks, tests and builds. `pnpm test:browser` starts dedicated test servers and requires the isolated `restaurantos_test` database and Chromium. CI additionally configures a Docker startup/outage/durability job; its presence is not evidence of a successful remote run. Confirm the actual branch/commit and CI result when delivering the repository. Earlier workflow-authentication failures are historical observations, not an assertion about current credentials.
+
+## Security and monitoring
+
+Environment allowlists keep signing secrets in API, provider private credentials in worker, database access in API/worker/initializer and only runtime API addressing in frontends. Maintain host secret storage, rotation and restricted logs/backups.
+
+Burst limits are process-local and identity-aware. Login accounts have separate hashed buckets plus a high coarse source ceiling; authenticated AI calls and platform writes use verified identities. Do not trust arbitrary forwarded IP headers. Add trusted-edge and distributed capacity controls before multiple API replicas. Daily tenant AI quotas are persisted and shared.
+
+HTTP/job logs contain request/tenant/actor identifiers and sanitized codes. Unexpected errors include cause class, dependency code where known and redacted frame information; raw error messages, bodies, cookies, provider output and Push endpoints are excluded. Configure rotation, retention and alert routing. Test an internal dependency failure so the operator can correlate it at 3am.
+
+Run one API instance for immediate notifications. More instances require fan-out, local authorization/revocation checks and polling affinity; a Redis adapter alone is not a demonstrated scaling solution. Monitor outbox backlog, queue failures, database pools and worker heartbeat. Reports have bounded read-only query timeouts; a shared heartbeat does not prove every individual queue is healthy. Database/API failures need independent external monitoring because the application cannot persist its own outage alert.
 
 ## Updates and rollback
 
-Review migrations before deploying. Back up first. Build the new image, run forward migrations, restart services, and smoke-test. Application rollback is safe only when the database schema remains compatible; do not automatically reverse migrations. Keep previous image tags and a tested restore plan.
+Review migrations, back up, build the new image, apply forward migrations, restart all services and verify the exact release. Application rollback is safe only if the schema remains compatible; do not automatically reverse migrations. Keep restore evidence and prior image tags. The current image retains build tooling/source for simple reproducibility; pruning it is a later optimization, not a delivery proof.
 
-The supplied image retains development tools/source for straightforward migrations and build reproducibility. A smaller multi-stage/pruned image and separate production initialization policy are follow-up work.
+## Final submission gates
 
-## Delivery checks still requiring external access
-
-- Docker image/Compose startup on a Docker-enabled host.
-- Remote GitHub Actions execution after source is pushed to the repository.
-- HTTPS hostname and production cookie verification.
-- Real provider account/key/model accessibility.
-- Browser/mobile interaction verification and a 5–10 minute recorded walkthrough.
-
-## Automated container verification
-
-The GitHub Actions `Docker Compose smoke` job is configured to build the image, initialize all five services, run a full waiter/kitchen HTTP smoke flow, verify durable replay after response loss and a PostgreSQL restart, repeat core ordering while Redis is stopped, and validate the production HTTPS Compose/Caddy configuration. Its test data/volumes are disposable. This job remains unverified until GitHub accepts the workflow and it passes remotely.
-
-Configuration references: [Compose startup dependencies](https://docs.docker.com/compose/how-tos/startup-order), [Caddy environment syntax](https://caddyserver.com/docs/caddyfile/concepts), and [reverse proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy).
-
-## Current source delivery blocker
-
-The initial local source commit exists, but GitHub rejected its push because the existing credential lacks `workflow` scope for `.github/workflows/ci.yml`. Update GitHub authentication to include the required workflow access before retrying. Do not drop the CI workflow to bypass this server restriction. Railway was identified as a compatible optional deployment integration but is not connected.
-
-## Super Admin deployment configuration
-
-The expanded Compose stack includes `super-admin` on localhost port 3001 with a runtime API proxy. HTTPS configuration requires **both** `PUBLIC_HOSTNAME` and `PUBLIC_PLATFORM_HOSTNAME`; use distinct hostnames and exact `WEB_ORIGIN` / `PLATFORM_ORIGIN`. Caddy routes the platform hostname to `super-admin:3001`. Host-only HttpOnly cookies and explicit JWT audiences separate the contexts. Existing restaurant cookies require fresh login after this migration.
-
-The platform seed is deliberately opt-in and rejects production. Password-only platform access is a nonproduction prototype, visibly labeled in the UI; production MFA/onboarding and restricted privileged access must be completed before real-customer use. This configuration has not been run with Docker or deployed over public HTTPS in this environment.
-
-## Recovery hardening supersedes earlier platform routing notes
-
-`pnpm demo:up` prepares demo-only configuration when absent and runs Compose with readiness waiting. It preserves existing `.env` and volumes; review configured targets before running. Docker execution remains unverified locally.
-
-Compose now uses explicit service environment allowlists: signing credentials belong to API, provider credentials to worker, database credentials to API/worker/initialization; frontends get only runtime API addressing. API signing/database/provider credentials are not inherited by web containers. Use host-managed secrets for real production deployment.
-
-The default public HTTPS configuration now serves only the restaurant hostname and returns 404 for platform paths. `PUBLIC_PLATFORM_HOSTNAME` is no longer required for that configuration. Super Admin is an opt-in local `platform` Compose profile; enable `PLATFORM_ADMIN_ENABLED=true` only for an explicitly restricted nonproduction environment. Do not expose password-only platform administration publicly. Earlier two-host forwarding instructions are historical and superseded.
-
-Restaurant tokens issued before the persisted-session change require fresh login. Logout now revokes the current restaurant session; expiry, active membership and suspension checks remain server-side. Database validation failures fail closed.
-
-AI eligibility must be verified for the actual service/customer location; moving the worker abroad is not sufficient proof. Current OpenAI guidance does not list Iran. No live key/provider acceptance or workaround is claimed.
-
-## Socket.IO transport routing
-
-The later real-time expansion adds `/socket.io/*` routing directly to the API in Caddy before the general Next proxy. The host must preserve the exact browser origin and support WebSocket upgrades; origin/session checks are enforced in Nest. Local Next route handlers relay polling only, using the existing runtime API address and cookie header. Do not point Socket.IO at a build-time Docker-only address in browser code. Keep proxy idle timeouts above the Socket.IO heartbeat window.
-
-Run one API instance for this version. Multiple instances require committed-change fan-out, local recipient reauthorization, revocation propagation and polling session affinity; installing Redis broadcasting alone is insufficient with the current local-recipient publisher. HTTPS/Caddy upgrade and multi-instance behavior remain unverified. See REALTIME.md.
+- [ ] Compatible host, actual HTTPS URL and secure production cookies verified.
+- [ ] Reviewer credentials tested without privileged platform exposure.
+- [ ] Exact source commit delivered and remote CI verified.
+- [ ] Live eligible-provider quality/latency and human approval demonstrated.
+- [ ] Backup restoration and public-proxy recovery verified.
+- [ ] Supported-device Push checked if claimed as delivered.
+- [ ] Playable narrated 5–10 minute walkthrough linked.
+- [ ] Actual active-time history or honest unknown/overrun disclosure included.

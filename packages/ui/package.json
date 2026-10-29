@@ -1,0 +1,16 @@
+{
+  "name": "@restaurantos/ui",
+  "private": true,
+  "peerDependencies": {
+    "react": "^19.2.0"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0"
+  },
+  "nx": {
+    "includedScripts": []
+  }
+}

@@ -26,11 +26,13 @@ export default defineConfig({
         DATABASE_URL: database,
         PORT: '4002',
         NODE_ENV: 'test',
+        NOTIFICATIONS_RUN_IN_TEST: 'true',
         JWT_SECRET:
           process.env.JWT_SECRET ||
           'browser-test-secret-at-least-thirty-two-characters',
         WEB_ORIGIN: 'http://127.0.0.1:3002',
-        PLATFORM_ADMIN_ENABLED: 'false',
+        PLATFORM_ADMIN_ENABLED: 'true',
+        PLATFORM_ORIGIN: 'http://127.0.0.1:3003',
         COOKIE_SECURE: 'false',
       },
     },
@@ -38,6 +40,16 @@ export default defineConfig({
       command:
         'node apps/web/node_modules/next/dist/bin/next start apps/web -p 3002',
       url: 'http://127.0.0.1:3002',
+      reuseExistingServer: false,
+      env: {
+        API_INTERNAL_URL: 'http://127.0.0.1:4002',
+        NODE_ENV: 'production',
+      },
+    },
+    {
+      command:
+        'node apps/super-admin/node_modules/next/dist/bin/next start apps/super-admin -p 3003',
+      url: 'http://127.0.0.1:3003/login',
       reuseExistingServer: false,
       env: {
         API_INTERNAL_URL: 'http://127.0.0.1:4002',

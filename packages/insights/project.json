@@ -1,0 +1,7 @@
+{
+  "name": "insights",
+  "sourceRoot": "packages/insights/src",
+  "projectType": "library",
+  "tags": ["type:lib", "platform:node"],
+  "implicitDependencies": ["database", "shared"]
+}

@@ -16,6 +16,7 @@ import { MenuModule } from './modules/menu/menu.module';
 import { PlatformAdminModule } from './modules/platform-admin/platform.module';
 import { RestaurantAdminModule } from './modules/restaurant-admin/admin.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AiModule } from './modules/ai/ai.module';
 @Controller('health')
 class HealthController {
@@ -56,6 +57,7 @@ class HealthController {
     }),
     SecurityModule,
     RealtimeModule,
+    NotificationsModule,
     AuthModule,
     OrdersModule,
     MenuModule,
@@ -83,10 +85,9 @@ export async function createApp() {
   app.enableCors({
     origin: [allowedOrigin, platformOrigin],
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Idempotency-Key', 'X-CSRF-Protection'],
   });
-  const limits = new Map<string, { count: number; reset: number }>();
   app.use((req: AuthRequest, res: Response, next: NextFunction) => {
     if (
       req.path.toLowerCase().startsWith('/api/v1/platform/') &&
@@ -129,25 +130,6 @@ export async function createApp() {
         return res
           .status(403)
           .json({ error: { code: 'CSRF_REJECTED', requestId: req.requestId } });
-    }
-    const isPlatform =
-      req.path.toLowerCase().startsWith('/api/v1/platform/') &&
-      !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
-    const isLogin = req.path.toLowerCase().endsWith('/auth/login');
-    const isAi =
-      req.path.toLowerCase().includes('/ai/') && req.method === 'POST';
-    if (isLogin || isAi || isPlatform) {
-      const now = Date.now();
-      for (const [key, entry] of limits)
-        if (entry.reset <= now) limits.delete(key);
-      const key = `${req.ip}:${isLogin ? 'login' : isPlatform ? 'platform' : 'ai'}`;
-      const entry = limits.get(key) || { count: 0, reset: now + 60000 };
-      entry.count++;
-      limits.set(key, entry);
-      if (entry.count > (isLogin ? 30 : isPlatform ? 60 : 15))
-        return res
-          .status(429)
-          .json({ error: { code: 'RATE_LIMITED', requestId: req.requestId } });
     }
     next();
   });

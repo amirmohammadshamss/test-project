@@ -1,0 +1,9 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "notifications",
+  "sourceRoot": "packages/notifications/src",
+  "projectType": "library",
+  "tags": ["type:library", "platform:node"],
+  "implicitDependencies": ["database", "shared"],
+  "targets": {}
+}

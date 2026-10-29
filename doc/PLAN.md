@@ -422,3 +422,49 @@ Implementation record: [ADMIN_IMPLEMENTATION.md](./ADMIN_IMPLEMENTATION.md). Loc
 - The AI capability remains an RFP requirement. If it cannot be completed safely, disclose it as incomplete rather than presenting a mock as a working integration.
 - Hosting access, provider credentials, and external service availability are dependencies. Prepare configuration and deployment instructions when blocked, and clearly distinguish prepared work from a verified live deployment.
 - At 360 minutes, record the exact implementation state and any overrun. Remaining required work prevents claiming full RFP completion.
+
+## Central notifications — additional user scope
+
+- [x] Transactional business outbox, persistent recipient-owned history and deduplication.
+- [x] Private restaurant/platform Socket.IO hints and reconnect synchronization.
+- [x] Persian notification center, preferences, read/read-all and separate acknowledgment.
+- [x] Encrypted session-bound Push subscriptions, service worker and bounded BullMQ retries.
+- [x] Order, preparation, cancellation, delay, AI failure, suspension and platform-health sources.
+- [x] Local security, database/Redis/socket/browser checks and production builds.
+- [ ] Operator HTTPS/VAPID setup and physical-device Push acceptance.
+- [ ] Future escalation, detailed analytics and administrative reporting.
+
+See [NOTIFICATIONS.md](NOTIFICATIONS.md) for policies, setup and delivery limits.
+
+## AI strategy — Phase 1 expansion
+
+- [x] Provider-independent menu parser with explicitly selected cloud/self-hosted adapters.
+- [x] Durable request reconciliation, fenced retries and manager-only idempotent publication.
+- [x] Transactional completion notifications and saved-draft navigation.
+- [x] Request caps, reported usage/latency, correction tracking and retention.
+- [x] Persian evaluation fixtures and explicit opt-in evaluation command.
+- [ ] Live eligible-provider Persian quality, billing and staff-time evaluation.
+
+See [AI_STRATEGY.md](AI_STRATEGY.md) for setup, safety boundaries and the deferred Phase 2/3 checklist.
+
+## Manager assistant — bounded Phase 2 slice
+
+- [x] Durable, private branch-scoped question history with shared AI quota.
+- [x] Provider-independent strict selection of three read-only report tools.
+- [x] Tehran windows, observed facts and explicit payment/profit limitations.
+- [x] PostgreSQL reports, BullMQ recovery, fenced attempts and private notifications.
+- [x] Unit, real database/Redis, isolation and saved-result browser checks.
+- [x] Opt-in Persian question-routing evaluation corpus and command.
+- [ ] Eligible live-provider routing-quality and manager time-saving evaluation.
+
+See [MANAGER_ASSISTANT.md](MANAGER_ASSISTANT.md). Voice, images/PDFs and forecasting remain separate phases.
+
+## Assessment hardening
+
+- [x] Isolate ordinary account/AI burst limits behind the proxy.
+- [x] Fix provider-aware smoke expectations and safe error diagnostics.
+- [x] Enrich idempotent fictional history and label all fixed AI examples.
+- [x] Carry immutable kitchen instructions through REST and staff screens.
+- [x] Consolidate the Persian owner handover and current deployment documentation.
+- [x] Verify the release and prepare all authorized changes for the requested commit.
+- [ ] Close externally dependent deployment/provider/recording gates in [ASSESSMENT_FIXES.md](ASSESSMENT_FIXES.md).

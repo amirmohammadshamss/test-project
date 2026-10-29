@@ -55,6 +55,13 @@ export async function api<T>(
   return data as T;
 }
 export const errors: Record<string, string> = {
+  DRAFT_ALREADY_APPROVED:
+    'این پیش‌نویس قبلاً با اطلاعات دیگری منتشر شده است؛ منوی فعلی را بررسی کنید.',
+  AI_DAILY_LIMIT:
+    'سهمیه روزانه هوش مصنوعی تمام شده است؛ ثبت دستی و مشاهده سفارش‌ها همچنان در دسترس است.',
+  AI_PROVIDER_NOT_ELIGIBLE:
+    'ارائه‌دهنده برای این محیط تأیید نشده است؛ از ثبت دستی استفاده کنید.',
+
   CANCELLATION_NOT_ALLOWED:
     'این قلم سرو شده یا قبلاً لغو شده است؛ لغو مجاز نیست.',
   REASON_REQUIRED: 'دلیل لغو را وارد کنید.',

@@ -80,4 +80,10 @@ async function proxy(
     );
   }
 }
-export { proxy as GET, proxy as POST, proxy as PATCH, proxy as OPTIONS };
+export {
+  proxy as GET,
+  proxy as POST,
+  proxy as PATCH,
+  proxy as DELETE,
+  proxy as OPTIONS,
+};

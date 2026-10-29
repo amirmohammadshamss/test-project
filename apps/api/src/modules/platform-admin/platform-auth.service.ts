@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { RealtimeEventPublisher } from '../../common/application/realtime';
 import { prisma } from '../../../../../packages/database/src/client';
 import {
   hashPassword,
@@ -7,6 +8,10 @@ import {
 const dummy = hashPassword('invalid-platform-user-password');
 @Injectable()
 export class PlatformAuthService {
+  constructor(
+    @Inject(RealtimeEventPublisher)
+    private readonly events: RealtimeEventPublisher,
+  ) {}
   async login(email: string, password: string, requestId: string) {
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
@@ -43,10 +48,17 @@ export class PlatformAuthService {
     };
   }
   async logout(sessionId: string) {
-    await prisma.platformSession.updateMany({
-      where: { id: sessionId, revokedAt: null },
-      data: { revokedAt: new Date() },
+    await prisma.$transaction(async (tx) => {
+      await tx.platformSession.updateMany({
+        where: { id: sessionId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await tx.pushSubscription.updateMany({
+        where: { realm: 'PLATFORM', sessionId },
+        data: { active: false, encrypted: '', revokedAt: new Date() },
+      });
     });
+    this.events.disconnectSession(sessionId);
     return { ok: true };
   }
   async me(userId: string) {

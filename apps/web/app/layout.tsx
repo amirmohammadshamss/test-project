@@ -2,6 +2,7 @@ import { ui } from '../lib/ui';
 import type { Metadata } from 'next';
 import './globals.css';
 export const metadata: Metadata = {
+  manifest: '/manifest.webmanifest',
   title: 'نارنج | RestaurantOS',
   description: 'مدیریت میز، سفارش و آشپزخانه رستوران',
 };

@@ -10,7 +10,7 @@ Local PostgreSQL migrations/seeding, the NestJS API/worker, Next.js production b
 
 ## Requirements
 
-Node.js 22+, pnpm 10.32.1, PostgreSQL 16, Redis 7+; alternatively Docker with Compose. No external fonts or image service are needed. OpenAI is optional for ordering and required only for live AI parsing.
+Node.js 22+, pnpm 10.32.1, PostgreSQL 16, Redis 7+; alternatively Docker with Compose. No external fonts or image service are needed. AI is optional for ordering; live menu parsing requires an explicitly configured eligible provider or self-hosted model.
 
 ## Run with Docker Compose
 
@@ -51,7 +51,7 @@ The task environment uses a temporary pnpm installation. If pnpm is not on PATH,
 
 ## Nx workspace
 
-Nx 24.0.2 orchestrates the existing pnpm workspace. Projects are `api`, `worker`, `web`, `super-admin`, `database`, `shared`, and the root `workspace` tooling project. Each has explicit `project.json` configuration; `nx.json` defines shared inputs and caching. No Nx Cloud account is required or connected.
+Nx 24.0.2 orchestrates the existing pnpm workspace. Projects are `api`, `worker`, `web`, `super-admin`, `database`, `shared`, `notifications`, `ui`, `insights`, and the root `workspace` tooling project. Each has explicit `project.json` configuration; `nx.json` defines shared inputs and caching. No Nx Cloud account is required or connected.
 
 ```sh
 pnpm nx show projects
@@ -93,7 +93,7 @@ Use your configured `SEED_DEMO_PASSWORD` for all demo accounts:
 - Second restaurant manager: `other@demo.restaurantos.test`
 - Restricted second-branch waiter: `branch@demo.restaurantos.test`
 
-The current local seed password is `RestaurantOS-Demo-2026!`. This is deliberately public demo data, not a production secret. Re-seeding updates demo password hashes but preserves existing menu/order mutations. Seed two restaurants, three branches, eight tables per branch, five categories and eight fictional Persian items per restaurant, plus active/historical orders in Café Narenj.
+The current local seed password is `RestaurantOS-Demo-2026!`. This is deliberately public demo data, not a production secret. Re-seeding updates demo password hashes but preserves existing menu/order mutations. Seed two restaurants, three branches, eight tables per branch, six seeded categories and eight distinct fictional Persian items per restaurant, thirty days of completed/cancelled shifts, active kitchen work, audit events, notifications and clearly labeled fixed AI examples. Fixtures do not prove live inference. Reseeding preserves existing order/menu edits and notification state; seeded account passwords/roles and base restaurant names are restored.
 
 ## Staff workflow
 
@@ -107,7 +107,7 @@ Closing an order is operational completion, not payment. Empty orders can be can
 
 ## Checks
 
-Set `TEST_DATABASE_URL` to a separate database whose name is exactly `restaurantos_test`. Create that database before running the integration script. The test runner refuses any other database name, deploys migrations and seeds it, then runs PostgreSQL/Redis-backed API and queue tests. Test fixtures are not deleted automatically; use a disposable database. Never point tests at a live restaurant database.
+Set `TEST_DATABASE_URL` to a separate database whose name is exactly `restaurantos_test`. Create that database before running the integration script. The test runner refuses any other database name, deploys migrations and seeds it, then runs PostgreSQL/Redis-backed API and queue tests. Most test fixtures are retained; the runner clears only AI histories for the two seed-owned test tenants to make quotas repeatable. Use a disposable database. Never point tests at a live restaurant database.
 
 ```sh
 pnpm format:check
@@ -119,7 +119,7 @@ pnpm build
 pnpm test:browser
 ```
 
-`pnpm test:e2e` runs the same integration suite, which includes the complete waiter/kitchen API E2E path. `pnpm verify` runs all checks in sequence. GitHub Actions supplies PostgreSQL/Redis service containers and fails on any mandatory check. No production provider credentials are used by automated tests.
+`pnpm test:e2e` runs the same integration suite, which includes the complete waiter/kitchen API E2E path. `pnpm verify` runs all checks in sequence. GitHub Actions supplies PostgreSQL/Redis service containers and fails on any mandatory check. No production provider credentials are used by automated tests. Current unverified boundaries: Docker/TLS require the target host, model quality requires an eligible provider, OS Push requires physical devices/permission, and shift suitability/load require representative staff/workload. More duplicated unit tests are lower value than those acceptance checks.
 
 For an HTTP smoke check against the running local stack, run `node --env-file=.env scripts/smoke.mjs`. It creates and completes one demo order and submits an AI request, so use demo data. It is an HTTP check, not browser verification.
 
@@ -127,7 +127,7 @@ For an HTTP smoke check against the running local stack, run `node --env-file=.e
 
 ## Architecture and correctness
 
-- `apps/api`: NestJS modules for auth, orders/tables/kitchen, menu, and AI. Orders use framework-independent rules, application use cases/ports, Prisma adapters, and thin HTTP controllers. Small auth/menu/AI services use Prisma directly outside controllers; full layering is intentionally concentrated in the critical ordering workflow.
+- `apps/api`: NestJS modules for auth, orders/tables/kitchen, menu, and AI. Orders use framework-independent rules, application use cases/ports, Prisma adapters, and thin HTTP controllers. Auth/menu services use Prisma outside controllers; AI now uses a repository boundary and an independent parser port. Full domain layering remains concentrated in critical ordering.
 - `apps/web`: Persian RTL React/Next.js UI with polling. A runtime server proxy keeps cookie-authenticated API calls on the same origin and resolves `API_INTERNAL_URL` at runtime.
 - `apps/worker`: independent NestJS context, BullMQ worker, persisted pending-request reconciliation, and replaceable menu parser.
 - `packages/database`: schema, migrations, seed, password hashing and Prisma client.
@@ -137,13 +137,13 @@ Every order mutation locks the scoped parent order before reading/changing invar
 
 Critical mutations require `Idempotency-Key` (8–128 ASCII letters/digits/underscore/hyphen). Scope is tenant + actor + operation + active branch + key. A transaction advisory lock serializes simultaneous absent-key requests, then the mutation and serialized result commit together. Same payload replays; different payload conflicts. Failed transactions leave no committed claim. Calls wait for the first request within database/transaction limits; timeouts can be retried with the same key. Retention is seven days; worker reconciliation cleans expired records, and expired records are ignored/replaced on reuse. Deduplication is not guaranteed after retention expires.
 
-AI requests are persisted before enqueue. A five-second reconciler re-enqueues unfinished work with stable IDs; persisted leases/attempts and conditional updates fence duplicate result application. Redis/provider calls are at-least-once, not exactly-once, and duplicate provider cost is possible after crashes. Three persisted attempts, bounded backoff, 20-second provider timeout, strict validation, and transactional human approval prevent duplicated menu publication. Reconciliation batch size is 100. Core ordering has no Redis startup dependency; the optional platform monitoring adapter connects to BullMQ only for an explicit monitoring request.
+AI requests are persisted before enqueue. A five-second reconciler re-enqueues unfinished work with stable IDs; persisted leases/attempts and conditional updates fence duplicate result application. Redis/provider calls are at-least-once, not exactly-once, and duplicate provider cost is possible after crashes. Three persisted attempts, bounded backoff, 20-second provider timeout, strict validation, and transactional human approval prevent duplicated menu publication. Reconciliation batch size is 100. Core ordering has no Redis startup dependency; the notification health monitor now also checks Redis/worker health asynchronously; it is excluded from core readiness.
 
 ## API and security
 
 Base path `/api/v1`; routes follow RFP section 10. Menu updates send a full editable representation rather than a sparse patch. Category listing is `/menu/categories`. All writes, including login/logout, require `X-CSRF-Protection: 1`; critical order/AI writes also require `Idempotency-Key`. JSON DTOs reject extra fields. Non-simple CSRF headers, strict-origin checks, SameSite cookies, restricted CORS and server guards protect cookie-based sessions.
 
-JWT lifetime is eight hours; membership/branch/role are rechecked on each request. Restaurant sessions are persisted and checked on every protected request. Logout revokes the current session before clearing its cookie; copied tokens then fail. Legacy tokens without a session ID require a fresh login. Other devices remain signed in. Limits are currently process-local and IP-based; behind the Next proxy users can share the same bucket. Distributed/user-aware rate limiting and proxy configuration need production review.
+JWT lifetime is eight hours; membership/branch/role are rechecked on each request. Restaurant sessions are persisted and checked on every protected request. Logout revokes the current session before clearing its cookie; copied tokens then fail. Legacy tokens without a session ID require a fresh login. Other devices remain signed in. Burst limits are process-local: login accounts have separate hashed-identity buckets (30/minute), plus a high coarse source ceiling (600/minute); AI POSTs are limited per authenticated user/tenant (15/minute) and platform writes per administrator (60/minute). Caller-supplied forwarded IP headers do not establish identity. The persisted daily tenant AI budget remains shared across replicas; distributed burst protection and trusted-edge capacity controls require deployment review.
 
 Money is integer IRR, with whole-toman inputs and explicit 10:1 conversion; invalid fractions are rejected. UTC timestamps display in `Asia/Tehran`. Table occupancy derives from open orders.
 
@@ -160,3 +160,15 @@ See [ASSESSMENT_FIX_PLAN.md](./ASSESSMENT_FIX_PLAN.md) and [REMEDIATION_STATUS.m
 ## Real-time staff coordination
 
 [REALTIME.md](./REALTIME.md) records the subsequent Socket.IO expansion. Order commands remain REST transactions; authorized staff receive versioned post-commit invalidations and refetch state. Reconnection always refetches and five-second polling covers missed notifications. Local Next routing uses Socket.IO long-polling fallback; Caddy is configured to forward real WebSocket upgrades directly to Nest under HTTPS, but that deployment path is not yet verified. Super Admin continues polling. Keep a single API instance until fan-out, revocation coordination and polling affinity are implemented.
+
+## Central notifications
+
+Restaurant and platform headers now include a persistent Persian notification center. PostgreSQL outbox events are committed with business changes; personal Socket.IO messages trigger authorized refetching, while BullMQ handles optional Web Push. Read and acknowledgment never change an order. Push is disabled until operator secrets and HTTPS are configured. See [notification setup and limitations](NOTIFICATIONS.md). Existing local startup, migration and verification commands apply; `pnpm notifications:keys` creates an ignored owner-only key file without printing private values.
+
+## AI menu assistant
+
+The text assistant now supports explicit `disabled`, `ollama` or eligible `openai` worker configuration. Drafts survive navigation, completion creates a private notification, and publishing requires manager review. AI is disabled by default. Daily tenant request caps and 30-day retention apply. See [AI_STRATEGY.md](AI_STRATEGY.md) before selecting a provider; `AI_EVAL_CONFIRM=1 pnpm ai:evaluate` deliberately invokes the configured model against the Persian fixtures and may incur cost. Voice, images/PDFs and forecasting remain later phases; a bounded reporting assistant is now available as described below.
+
+## Read-only manager assistant
+
+Managers can open **دستیار گزارش مدیر** to ask about top items, completed-order values/comparisons and cancellations in the active branch. Questions and results persist privately for 30 days. Strict model-selected reporting tools have no SQL or mutation access; database facts are rendered directly in Persian. Menu and question requests share the tenant daily AI quota. Provider setup is unchanged and disabled by default. See [MANAGER_ASSISTANT.md](MANAGER_ASSISTANT.md); `AI_EVAL_CONFIRM=1 pnpm ai:evaluate-manager` deliberately evaluates question routing and may incur cost.

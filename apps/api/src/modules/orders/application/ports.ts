@@ -17,7 +17,12 @@ export interface OrderTransaction {
   findActiveOrder(tableId: string): Promise<OrderView | null>;
   createOrder(tableId: string): Promise<OrderView>;
   menu(id: string): Promise<MenuEntry>;
-  append(order: OrderView, menu: MenuEntry, quantity: number): Promise<void>;
+  append(
+    order: OrderView,
+    menu: MenuEntry,
+    quantity: number,
+    notes?: string,
+  ): Promise<void>;
   updateItem(
     item: Item,
     change: { quantity?: number; status?: ItemStatus },

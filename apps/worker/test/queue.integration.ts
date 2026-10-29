@@ -72,6 +72,11 @@ test('persist-before-enqueue recovers, transient provider failure retries throug
     const ready = await waitFor(row.id, 'READY');
     expect(ready.result).toEqual(result);
     expect(ready.attempts).toBe(2);
+    expect(
+      await db.notificationOutbox.count({
+        where: { dedupeKey: 'ai-ready:' + row.id, type: 'AI_READY' },
+      }),
+    ).toBe(1);
     const before = calls;
     await processDraft(
       db,
@@ -110,6 +115,11 @@ test('permanent failures stop immediately and persist a visible failure state', 
     const failed = await waitFor(row.id, 'FAILED');
     expect(failed.attempts).toBe(1);
     expect(failed.errorCode).toBe('AI_INVALID_OUTPUT');
+    expect(
+      await db.notificationOutbox.count({
+        where: { dedupeKey: 'ai-failed:' + row.id, type: 'AI_FAILED' },
+      }),
+    ).toBe(1);
     expect(calls).toBe(1);
   } finally {
     await worker.close();
@@ -255,4 +265,35 @@ test('Nest module lifecycle starts dispatch/processing and closes worker resourc
   } finally {
     await context.close();
   }
+});
+
+test('usage is persisted with the result and lost authorization prevents provider access', async () => {
+  const row = await draft();
+  await processDraft(
+    db,
+    {
+      parse: async (_input, usage) => {
+        usage?.({
+          provider: 'test',
+          model: 'test',
+          inputTokens: 12,
+          outputTokens: 8,
+        });
+        return result;
+      },
+    },
+    { tenantId, draftId: row.id },
+  );
+  const ready = await db.aiDraft.findUniqueOrThrow({ where: { id: row.id } });
+  expect(ready.inputTokens).toBe(12);
+  expect(ready.outputTokens).toBe(8);
+  expect(ready.usageSamples).toBe(1);
+  const noActor = await db.aiDraft.create({
+    data: { tenantId, actorId: randomUUID(), input: 'برگر ۴۵۰ هزار تومان' },
+  });
+  const parser = { parse: jest.fn(async () => result) };
+  await expect(
+    processDraft(db, parser, { tenantId, draftId: noActor.id }),
+  ).rejects.toThrow('AI_ACCESS_REVOKED');
+  expect(parser.parse).not.toHaveBeenCalled();
 });

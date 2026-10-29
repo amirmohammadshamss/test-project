@@ -1,3 +1,4 @@
+import { smokeAiPolicy } from './smoke-ai-policy.mjs';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 const base = process.env.SMOKE_URL || 'http://localhost:3000';
@@ -103,6 +104,7 @@ const closed = (
   )
 ).json;
 assert.equal(closed.status, 'COMPLETED');
+let providerVerified = false;
 if (process.env.SMOKE_SKIP_AI !== '1') {
   const draft = (
     await call(
@@ -112,19 +114,23 @@ if (process.env.SMOKE_SKIP_AI !== '1') {
       manager,
     )
   ).json;
-  if (!process.env.OPENAI_API_KEY) {
-    let state;
-    for (let i = 0; i < 30; i++) {
-      state = (
-        await call(`/ai/menu-drafts/${draft.id}`, 'GET', undefined, manager)
-      ).json;
-      if (state.status === 'FAILED') break;
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-    assert.equal(state.status, 'FAILED');
-    assert.equal(state.errorCode, 'AI_NOT_CONFIGURED');
-    assert.equal((await call('/health/ready')).json.database, 'ready');
+  const policy = smokeAiPolicy();
+  let state;
+  for (let i = 0; i < 150; i++) {
+    state = (
+      await call(`/ai/menu-drafts/${draft.id}`, 'GET', undefined, manager)
+    ).json;
+    if (['READY', 'FAILED'].includes(state.status)) break;
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
+  assert.equal(
+    state.status,
+    policy.expected,
+    'Provider outcome did not match explicit configuration',
+  );
+  if (policy.errorCode) assert.equal(state.errorCode, policy.errorCode);
+  providerVerified = state.status === 'READY';
+  assert.equal((await call('/health/ready')).json.database, 'ready');
 }
 console.log(
   JSON.stringify({
@@ -139,9 +145,9 @@ console.log(
       'served completion',
       ...(process.env.SMOKE_SKIP_AI === '1'
         ? []
-        : ['AI request and missing-provider handling']),
+        : ['AI request and explicit provider outcome']),
     ],
     uiBrowserVerified: false,
-    liveProviderVerified: false,
+    liveProviderVerified: providerVerified,
   }),
 );

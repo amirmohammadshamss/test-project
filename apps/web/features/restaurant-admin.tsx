@@ -1,4 +1,7 @@
 'use client';
+import { ManagerAssistant } from './manager-assistant';
+import { menuCategories } from '../../../packages/shared/src/menu-draft';
+import { NotificationCenter } from '../../../packages/ui/src/notification-center';
 import { useRestaurantRealtime } from '../lib/realtime';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -19,6 +22,7 @@ type Menu = Row & {
   category: { name: string; active: boolean };
 };
 type Item = {
+  notes?: string;
   id: string;
   name: string;
   quantity: number;
@@ -183,6 +187,7 @@ const nav = [
   ['tables', 'میزها'],
   ['menu', 'منو و دسته‌بندی'],
   ['menu/ai-drafts', 'دستیار منو'],
+  ['ai-assistant', 'دستیار گزارش مدیر'],
   ['staff', 'کارکنان'],
   ['settings', 'تنظیمات'],
 ];
@@ -214,6 +219,22 @@ export default function RestaurantAdminPanel() {
   } | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [draftInput, setDraftInput] = useState('');
+  useEffect(() => {
+    if (section !== 'menu/ai-drafts') return;
+    const id = new URLSearchParams(window.location.search).get('draft');
+    if (!id) return;
+    let active = true;
+    api<Draft>('/admin/ai/menu-drafts/' + encodeURIComponent(id))
+      .then((d) => {
+        if (active) setDraft(d);
+      })
+      .catch(() => {
+        if (active) setError('پیش‌نویس در دسترس نیست.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [section]);
   const data = snapshot?.path === pathname ? snapshot.value : null;
   useEffect(() => {
     api<
@@ -255,7 +276,8 @@ export default function RestaurantAdminPanel() {
       ...(search ? { q: search } : {}),
       ...(status ? { status } : {}),
     });
-    if (section === '') value = await api('/admin/dashboard');
+    if (section === 'ai-assistant') value = { ready: true };
+    else if (section === '') value = await api('/admin/dashboard');
     else if (section === 'menu')
       value = await api(`/admin/menu/items?${query}`);
     else if (section === 'tables') value = await api('/admin/tables');
@@ -264,7 +286,13 @@ export default function RestaurantAdminPanel() {
     else if (section === 'orders') value = await api(`/admin/orders?${query}`);
     else if (section.startsWith('orders/'))
       value = await api(`/admin/orders/${section.split('/')[1]}`);
-    else if (section === 'menu/ai-drafts') value = { ready: true };
+    else if (section === 'menu/ai-drafts') {
+      const [drafts, metrics] = await Promise.all([
+        api<Draft[]>('/admin/ai/menu-drafts'),
+        api('/admin/ai/menu-drafts/metrics'),
+      ]);
+      value = { drafts, metrics };
+    }
     const [nextCategories, nextMenu] = await Promise.all([
       api<Category[]>('/admin/menu/categories'),
       api<Page<Menu>>('/admin/menu/items?pageSize=100'),
@@ -503,6 +531,11 @@ export default function RestaurantAdminPanel() {
           ))}
         </nav>
         <main className="min-w-0">
+          <NotificationCenter
+            key={JSON.stringify(me)}
+            scopeKey={JSON.stringify(me)}
+            role="MANAGER"
+          />
           <p role="status" className="mb-3 text-xs text-slate-600">
             {realtimeConnected
               ? 'ارتباط زنده برقرار است'
@@ -671,7 +704,14 @@ export default function RestaurantAdminPanel() {
                         'عملیات',
                       ]}
                       rows={o.items.map((item) => [
-                        item.name,
+                        <span>
+                          {item.name}
+                          {item.notes && (
+                            <small className="block text-amber-900">
+                              توضیح آشپزخانه: {item.notes}
+                            </small>
+                          )}
+                        </span>,
                         number(item.quantity),
                         `${money(item.priceRial)} تومان`,
                         labels[item.status],
@@ -978,6 +1018,8 @@ export default function RestaurantAdminPanel() {
                 }
               />
             </section>
+          ) : section === 'ai-assistant' ? (
+            <ManagerAssistant />
           ) : section === 'menu/ai-drafts' ? (
             <section className={card}>
               <h2>دستیار منوی فارسی</h2>
@@ -999,7 +1041,7 @@ export default function RestaurantAdminPanel() {
                 }}
               >
                 <label>
-                  توضیحات غذا
+                  توضیحات یک غذا (قیمت دقیق به تومان)
                   <textarea
                     required
                     minLength={5}
@@ -1021,6 +1063,70 @@ export default function RestaurantAdminPanel() {
                   ساخت پیش‌نویس
                 </button>
               </form>
+              <p className="mt-4 text-sm text-slate-600">
+                هر درخواست فقط یک غذا؛ برای چند غذا درخواست‌های جدا بفرستید. در
+                صورت خطا از ثبت دستی منو استفاده کنید. متن و پیش‌نویس تا ۳۰ روز
+                نگهداری می‌شود.
+              </p>
+              <details className="mt-4 rounded-lg border p-3">
+                <summary>اندازه‌گیری ۳۰ روز اخیر</summary>
+                <p className="mt-2 text-sm">
+                  تعدادها و توکن‌های گزارش‌شده شامل تلاش مجدد است؛ هزینه واقعی و
+                  زمان صرفه‌جویی‌شده هنوز اندازه‌گیری نشده است.
+                </p>
+                <p className="mt-2 text-sm">
+                  توکن ورودی گزارش‌شده:{' '}
+                  {number(
+                    (
+                      data as {
+                        metrics?: { totals?: { inputTokens?: number } };
+                      }
+                    )?.metrics?.totals?.inputTokens || 0,
+                  )}{' '}
+                  — توکن خروجی گزارش‌شده:{' '}
+                  {number(
+                    (
+                      data as {
+                        metrics?: { totals?: { outputTokens?: number } };
+                      }
+                    )?.metrics?.totals?.outputTokens || 0,
+                  )}{' '}
+                  — پیش‌نویس‌های اصلاح‌شده هنگام تأیید:{' '}
+                  {number(
+                    (data as { metrics?: { corrected?: number } })?.metrics
+                      ?.corrected || 0,
+                  )}
+                </p>
+              </details>
+              <h3 className="mt-5 font-bold">درخواست‌های اخیر (حداکثر ۵۰)</h3>
+              <ul className="my-3 grid gap-2">
+                {((data as { drafts?: Draft[] })?.drafts || []).map((d) => (
+                  <li key={d.id}>
+                    <button
+                      type="button"
+                      className={secondary}
+                      onClick={() => {
+                        void api<Draft>('/admin/ai/menu-drafts/' + d.id)
+                          .then(setDraft)
+                          .catch(() => setError('دریافت پیش‌نویس ممکن نشد.'));
+                      }}
+                    >
+                      باز کردن پیش‌نویس —{' '}
+                      {
+                        (
+                          {
+                            PENDING: 'در صف',
+                            PROCESSING: 'در حال پردازش',
+                            READY: 'آماده بررسی',
+                            APPROVED: 'منتشر شده',
+                            FAILED: 'ناموفق',
+                          } as Record<string, string>
+                        )[d.status]
+                      }
+                    </button>
+                  </li>
+                ))}
+              </ul>
               {draft && (
                 <div className="mt-5 rounded-lg bg-[#f6f7f4] p-4">
                   <p>
@@ -1079,11 +1185,9 @@ export default function RestaurantAdminPanel() {
                           name="category"
                           defaultValue={draft.result.category}
                         >
-                          {['برگر', 'پیتزا', 'نوشیدنی', 'پیش‌غذا', 'دسر'].map(
-                            (c) => (
-                              <option key={c}>{c}</option>
-                            ),
-                          )}
+                          {menuCategories.map((c) => (
+                            <option key={c}>{c}</option>
+                          ))}
                         </select>
                       </label>
                       <button className={button} disabled={busy}>

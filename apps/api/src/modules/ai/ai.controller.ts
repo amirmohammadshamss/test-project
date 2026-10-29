@@ -25,6 +25,12 @@ export class AiController {
   ) {
     return this.ai.request(req.actor, input, key);
   }
+  @Get() list(@Req() req: AuthRequest) {
+    return this.ai.list(req.actor);
+  }
+  @Get('metrics') metrics(@Req() req: AuthRequest) {
+    return this.ai.metrics(req.actor);
+  }
   @Get(':id') get(
     @Req() req: AuthRequest,
     @Param('id', ParseUUIDPipe) id: string,

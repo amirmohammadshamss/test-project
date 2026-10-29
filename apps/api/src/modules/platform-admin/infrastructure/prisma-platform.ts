@@ -1,3 +1,4 @@
+import { recordNotificationEvent } from '../../../../../../packages/notifications/src/persistence';
 import { Prisma, PrismaClient } from '@prisma/client';
 import type { PlatformPrincipal } from '../../../../../../packages/shared/src/contracts';
 import { hashPassword } from '../../../../../../packages/database/src/password';
@@ -269,6 +270,15 @@ export class PrismaPlatformRepository extends PlatformRepository {
             reason: x.reason,
           },
         });
+        if (status === 'SUSPENDED')
+          await recordNotificationEvent(tx, {
+            dedupeKey: `tenant:${id}:v${updated.version}:suspended`,
+            realm: 'RESTAURANT',
+            type: 'TENANT_SUSPENDED',
+            tenantId: id,
+            entityId: id,
+            payload: { version: updated.version },
+          });
         await audit(
           tx,
           a,

@@ -24,7 +24,10 @@
     "graph": "nx graph",
     "db:seed-platform": "nx run database:seed-platform",
     "demo:up": "node scripts/demo-up.mjs",
-    "test:browser": "nx run workspace:test-browser"
+    "test:browser": "nx run workspace:test-browser",
+    "notifications:keys": "node scripts/generate-notification-keys.mjs",
+    "ai:evaluate": "node --env-file-if-exists=.env --import tsx scripts/evaluate-menu-ai.ts",
+    "ai:evaluate-manager": "node --env-file-if-exists=.env --import tsx scripts/evaluate-manager-ai.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.8",
@@ -39,10 +42,12 @@
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
     "helmet": "^8.1.0",
+    "ipaddr.js": "^2.5.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.4",
     "socket.io-client": "^4.8.4",
+    "web-push": "^3.6.7",
     "zod": "^4.1.0"
   },
   "devDependencies": {
@@ -53,6 +58,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^22.19.0",
     "@types/supertest": "^6.0.3",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9.39.0",
     "husky": "^9.1.7",
     "jest": "^30.2.0",

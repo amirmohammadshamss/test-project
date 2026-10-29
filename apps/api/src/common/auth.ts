@@ -15,6 +15,7 @@ import type {
   Role,
   PlatformPrincipal,
 } from '../../../../packages/shared/src/contracts';
+import { TrafficLimiter } from './traffic';
 import { prisma } from '../../../../packages/database/src/client';
 export interface AuthRequest extends Request {
   actor: Actor;
@@ -25,7 +26,10 @@ export const Roles = (...roles: Role[]) => SetMetadata('roles', roles);
 @Injectable()
 export class RestaurantSessionAuthenticator {
   constructor(@Inject(JwtService) private readonly jwt: JwtService) {}
-  async authenticate(token: string): Promise<Actor> {
+  async authenticate(
+    token: string,
+    options: { allowSuspended?: boolean } = {},
+  ): Promise<Actor> {
     let claims: {
       sub: string;
       membershipId: string;
@@ -73,9 +77,14 @@ export class RestaurantSessionAuthenticator {
       include: { restaurant: { select: { status: true } } },
     });
     if (!membership) throw new UnauthorizedException('AUTH_REQUIRED');
-    if (membership.restaurant.status !== 'ACTIVE')
+    if (
+      membership.restaurant.status !== 'ACTIVE' &&
+      !(options.allowSuspended && membership.role === 'MANAGER')
+    )
       throw new ForbiddenException('TENANT_SUSPENDED');
     return {
+      membershipId: membership.id,
+      tenantStatus: membership.restaurant.status,
       sessionId: claims.sid,
       userId: claims.sub,
       tenantId: membership.tenantId,
@@ -89,11 +98,31 @@ export class SessionGuard implements CanActivate {
   constructor(
     @Inject(RestaurantSessionAuthenticator)
     private readonly auth: RestaurantSessionAuthenticator,
+    @Inject(TrafficLimiter) private readonly limits: TrafficLimiter,
   ) {}
   async canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest<AuthRequest>();
     req.actor = {
       ...(await this.auth.authenticate(req.cookies?.session || '')),
+      requestId: req.requestId,
+    };
+    if (req.method === 'POST' && req.path.includes('/ai/'))
+      this.limits.hit(`ai:${req.actor.tenantId}:${req.actor.userId}`, 15);
+    return true;
+  }
+}
+@Injectable()
+export class NotificationSessionGuard implements CanActivate {
+  constructor(
+    @Inject(RestaurantSessionAuthenticator)
+    private readonly auth: RestaurantSessionAuthenticator,
+  ) {}
+  async canActivate(context: ExecutionContext) {
+    const req = context.switchToHttp().getRequest<AuthRequest>();
+    req.actor = {
+      ...(await this.auth.authenticate(req.cookies?.session || '', {
+        allowSuspended: true,
+      })),
       requestId: req.requestId,
     };
     return true;

@@ -27,7 +27,7 @@ export class AuthService {
           include: {
             branches: {
               where: { branch: { active: true } },
-              orderBy: { id: 'asc' },
+              orderBy: [{ branch: { createdAt: 'asc' } }, { branchId: 'asc' }],
             },
             restaurant: { select: { status: true } },
           },
@@ -66,9 +66,19 @@ export class AuthService {
   }
   async revoke(claims: { sid?: string; sub?: string } | null) {
     if (claims?.sid && claims.sub) {
-      await prisma.restaurantSession.updateMany({
-        where: { id: claims.sid, userId: claims.sub, revokedAt: null },
-        data: { revokedAt: new Date() },
+      await prisma.$transaction(async (tx) => {
+        await tx.restaurantSession.updateMany({
+          where: { id: claims.sid, userId: claims.sub, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        await tx.pushSubscription.updateMany({
+          where: {
+            realm: 'RESTAURANT',
+            sessionId: claims.sid,
+            userId: claims.sub,
+          },
+          data: { active: false, encrypted: '', revokedAt: new Date() },
+        });
       });
       this.events.disconnectSession(claims.sid);
     }

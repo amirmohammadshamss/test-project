@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 export const metadata: Metadata = {
+  manifest: '/manifest.webmanifest',
   title: 'نارنج | مدیریت سامانه',
   description: 'پنل آزمایشی مدیریت RestaurantOS',
 };

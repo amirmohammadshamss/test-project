@@ -1,5 +1,11 @@
-import { Module, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Module,
+  OnModuleDestroy,
+  OnModuleInit,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import type { PrismaClient } from '@prisma/client';
+import { NotificationWorkerRuntime } from './notifications';
 import { Queue, Worker } from 'bullmq';
 import { prisma } from '../../../packages/database/src/client';
 import {
@@ -9,7 +15,9 @@ import {
   reconcile,
   redisConnection,
 } from './processor';
-import { MenuParser, OpenAiMenuParser } from './provider';
+import { AnalysisWorkerRuntime } from './analysis';
+import { configuredManagerPlanner } from './provider';
+import { MenuParser, configuredMenuParser } from './provider';
 export class AiWorkerRuntime implements OnModuleInit, OnModuleDestroy {
   private queue!: Queue<DraftJob>;
   private worker!: Worker<DraftJob>;
@@ -69,14 +77,28 @@ export class AiWorkerRuntime implements OnModuleInit, OnModuleDestroy {
     await this.dispatching;
     await this.worker.close();
     await this.queue.close();
-    await this.db.$disconnect();
+  }
+}
+class WorkerDatabaseLifecycle implements OnApplicationShutdown {
+  async onApplicationShutdown() {
+    await prisma.$disconnect();
   }
 }
 @Module({
   providers: [
+    WorkerDatabaseLifecycle,
+    {
+      provide: AnalysisWorkerRuntime,
+      useFactory: () =>
+        new AnalysisWorkerRuntime(prisma, configuredManagerPlanner()),
+    },
+    {
+      provide: NotificationWorkerRuntime,
+      useFactory: () => new NotificationWorkerRuntime(prisma),
+    },
     {
       provide: AiWorkerRuntime,
-      useFactory: () => new AiWorkerRuntime(prisma, new OpenAiMenuParser()),
+      useFactory: () => new AiWorkerRuntime(prisma, configuredMenuParser()),
     },
   ],
 })

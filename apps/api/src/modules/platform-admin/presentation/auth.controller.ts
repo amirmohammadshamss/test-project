@@ -1,3 +1,4 @@
+import { LoginRateGuard } from '../../../common/traffic';
 import {
   Body,
   Controller,
@@ -32,7 +33,10 @@ export class PlatformAuthController {
     @Inject(JwtService) private readonly jwt: JwtService,
     @Inject(PlatformAuthService) private readonly auth: PlatformAuthService,
   ) {}
-  @Post('login') @HttpCode(200) async login(
+  @UseGuards(LoginRateGuard)
+  @Post('login')
+  @HttpCode(200)
+  async login(
     @Body() x: LoginDto,
     @Req() req: PlatformRequest,
     @Res({ passthrough: true }) res: Response,

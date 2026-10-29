@@ -54,6 +54,18 @@ test.beforeAll(async () => {
     });
   }
 });
+test.beforeAll(async () => {
+  const email = 'platform-' + suffix + '@browser.test';
+  accounts.PLATFORM = email;
+  await db.user.create({
+    data: {
+      email,
+      name: 'Platform browser',
+      passwordHash: await hashPassword(password),
+      platformAdmin: { create: {} },
+    },
+  });
+});
 test.afterAll(async () => {
   await db.$disconnect();
 });
@@ -108,7 +120,13 @@ test('independent waiter/kitchen sessions recover an accidental table and finish
     const food = w
       .locator('[data-ui="food-card"]')
       .filter({ hasText: 'لیموناد آزمون' });
+    await food
+      .getByLabel('توضیح آشپزخانه برای لیموناد آزمون')
+      .fill('بدون یخ؛ با سالن هماهنگ شود');
     await food.getByRole('button').click();
+    await expect(
+      k.getByText('توضیح آشپزخانه: بدون یخ؛ با سالن هماهنگ شود'),
+    ).toBeVisible();
     await expect(k.getByRole('heading', { name: /لیموناد آزمون/ })).toBeVisible(
       { timeout: 2500 },
     );
@@ -302,5 +320,320 @@ test('manager dashboard refetches immediately when another staff session opens a
   } finally {
     await manager.close();
     await waiter.close();
+  }
+});
+
+test('persistent notification center receives personal hints, distinguishes acknowledgment, and survives reload', async ({
+  browser,
+}, testInfo) => {
+  await db.restaurantTable.create({
+    data: { tenantId, branchId, number: 200 },
+  });
+  const wc = await browser.newContext(),
+    kc = await browser.newContext();
+  try {
+    const w = await wc.newPage(),
+      k = await kc.newPage();
+    await login(w, 'WAITER');
+    await login(k, 'KITCHEN');
+    await expect(k.locator('[data-realtime-state=connected]')).toBeVisible();
+    await k.request.post('/api/v1/notifications/read-all', {
+      headers: { 'X-CSRF-Protection': '1' },
+    });
+    const permission = await k.evaluate(() => Notification.permission);
+    await k.getByRole('button', { name: 'اعلان‌ها', exact: true }).click();
+    await expect(
+      k.getByRole('dialog', { name: 'مرکز اعلان‌ها' }),
+    ).toBeVisible();
+    await w
+      .getByRole('button')
+      .filter({ has: w.getByRole('heading', { name: 'میز ۲۰۰', exact: true }) })
+      .click();
+    await w
+      .locator('[data-ui="food-card"]')
+      .filter({ hasText: 'لیموناد آزمون' })
+      .getByRole('button')
+      .click();
+    const order = await db.order.findFirstOrThrow({
+      where: { tenantId, table: { number: 200 } },
+      orderBy: { createdAt: 'desc' },
+    });
+    const user = await db.user.findUniqueOrThrow({
+      where: { email: accounts.KITCHEN },
+    });
+    await expect
+      .poll(
+        () =>
+          db.notification.count({
+            where: {
+              entityId: order.id,
+              recipientId: user.id,
+              type: 'NEW_ORDER',
+            },
+          }),
+        { timeout: 20000 },
+      )
+      .toBe(1);
+    const n = await db.notification.findFirstOrThrow({
+        where: { entityId: order.id, recipientId: user.id, type: 'NEW_ORDER' },
+      }),
+      card = k.locator(`[data-notification-id="${n.id}"]`);
+    await expect(card).toBeVisible({ timeout: 2500 });
+    await card.getByRole('button', { name: 'دریافت را تأیید می‌کنم' }).click();
+    await expect(card.getByText('دریافت تأیید شده است')).toBeVisible();
+    expect(
+      (await db.notification.findUniqueOrThrow({ where: { id: n.id } })).readAt,
+    ).toBeNull();
+    await card.getByRole('button', { name: 'خواندم', exact: true }).click();
+    await expect(
+      card.getByRole('button', { name: 'خواندم', exact: true }),
+    ).toHaveCount(0);
+    await k.goto('/?notifications=1');
+    await expect(
+      k
+        .locator(`[data-notification-id="${n.id}"]`)
+        .getByText('دریافت تأیید شده است'),
+    ).toBeVisible();
+    expect(await k.evaluate(() => Notification.permission)).toBe(permission);
+    await k.setViewportSize({ width: 390, height: 844 });
+    await k.screenshot({
+      path: testInfo.outputPath('notification-center-mobile.png'),
+      fullPage: false,
+    });
+    expect(
+      await k.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await k.keyboard.press('Escape');
+    await expect(k.getByRole('dialog', { name: 'مرکز اعلان‌ها' })).toHaveCount(
+      0,
+    );
+  } finally {
+    await wc.close();
+    await kc.close();
+  }
+});
+test('platform notification center uses its own origin and never exposes restaurant notices', async ({
+  browser,
+}) => {
+  const context = await browser.newContext();
+  try {
+    const p = await context.newPage();
+    await p.goto('http://127.0.0.1:3003/login');
+    await p.getByLabel('ایمیل', { exact: true }).fill(accounts.PLATFORM);
+    await p.getByLabel('رمز عبور', { exact: true }).fill(password);
+    await p.getByRole('button', { name: 'ورود', exact: true }).click();
+    await expect(
+      p.getByRole('heading', { name: 'مدیریت پلتفرم RestaurantOS' }),
+    ).toBeVisible();
+    const event = await db.notificationOutbox.create({
+      data: {
+        dedupeKey: 'browser-critical:' + randomUUID(),
+        realm: 'PLATFORM',
+        type: 'PLATFORM_ISSUE',
+        entityId: randomUUID(),
+        payload: { source: 'browser-test' },
+      },
+    });
+    const user = await db.user.findUniqueOrThrow({
+      where: { email: accounts.PLATFORM },
+    });
+    await expect
+      .poll(
+        () =>
+          db.notification.count({
+            where: { eventId: event.id, recipientId: user.id },
+          }),
+        { timeout: 20000 },
+      )
+      .toBe(1);
+    await p.getByRole('button', { name: 'اعلان‌ها', exact: true }).click();
+    await expect(
+      p.getByRole('link', { name: 'سرویس سامانه نیاز به بررسی دارد' }).first(),
+    ).toBeVisible();
+    const response = await p.request.get(
+      'http://127.0.0.1:3003/api/v1/platform/notifications',
+    );
+    expect(response.ok()).toBe(true);
+    const notices = await response.json();
+    expect(
+      notices.items.every(
+        (n: { realm: string; tenantId: string | null }) =>
+          n.realm === 'PLATFORM' && n.tenantId === null,
+      ),
+    ).toBe(true);
+  } finally {
+    await context.close();
+  }
+});
+
+test('suspended manager sees only the restricted suspension notification center', async ({
+  browser,
+}) => {
+  const mc = await browser.newContext(),
+    pc = await browser.newContext();
+  let version: number | undefined;
+  try {
+    const m = await mc.newPage(),
+      p = await pc.newPage();
+    await login(m, 'MANAGER');
+    await p.goto('http://127.0.0.1:3003/login');
+    await p.getByLabel('ایمیل', { exact: true }).fill(accounts.PLATFORM);
+    await p.getByLabel('رمز عبور', { exact: true }).fill(password);
+    await p.getByRole('button', { name: 'ورود', exact: true }).click();
+    await expect(
+      p.getByRole('heading', { name: 'مدیریت پلتفرم RestaurantOS' }),
+    ).toBeVisible();
+    const tenant = await db.restaurant.findUniqueOrThrow({
+      where: { id: tenantId },
+    });
+    const suspended = await p.request.post(
+      'http://127.0.0.1:3003/api/v1/platform/restaurants/' +
+        tenantId +
+        '/suspend',
+      {
+        headers: {
+          'X-CSRF-Protection': '1',
+          'Idempotency-Key': randomUUID(),
+          Origin: 'http://127.0.0.1:3003',
+        },
+        data: { version: tenant.version, reason: 'Browser suspension notice' },
+      },
+    );
+    expect(suspended.ok()).toBe(true);
+    version = (await suspended.json()).version;
+    await m.reload();
+    await expect(
+      m.getByRole('heading', { name: 'دسترسی رستوران تعلیق شده است' }),
+    ).toBeVisible();
+    await m.getByRole('button', { name: 'اعلان‌ها', exact: true }).click();
+    await expect(
+      m.getByRole('link', { name: 'دسترسی رستوران تعلیق شده است' }).first(),
+    ).toBeVisible({ timeout: 15000 });
+    expect((await m.request.get('/api/v1/orders')).status()).toBe(403);
+    const notices = await (await m.request.get('/api/v1/notifications')).json();
+    expect(
+      notices.items.every(
+        (n: { type: string }) => n.type === 'TENANT_SUSPENDED',
+      ),
+    ).toBe(true);
+  } finally {
+    if (version !== undefined)
+      await db.restaurant.update({
+        where: { id: tenantId },
+        data: { status: 'ACTIVE', version: { increment: 1 } },
+      });
+    await mc.close();
+    await pc.close();
+  }
+});
+
+test('manager reopens a completed Persian AI draft and explicitly edits and publishes it', async ({
+  browser,
+}) => {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    await login(page, 'MANAGER');
+    await page.goto('/dashboard/menu/ai-drafts');
+    await page
+      .getByLabel('توضیحات یک غذا (قیمت دقیق به تومان)')
+      .fill('چلوکباب کوبیده ۳۸۰ هزار تومان');
+    await page
+      .getByRole('button', { name: 'ساخت پیش‌نویس', exact: true })
+      .click();
+    await expect(
+      page.getByText('درخواست ذخیره شده و در انتظار پردازش است.'),
+    ).toBeVisible();
+    const row = await db.aiDraft.findFirstOrThrow({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
+    });
+    const { processDraft } = await import('../apps/worker/src/processor');
+    await processDraft(
+      db,
+      {
+        parse: async () => ({
+          name: 'چلوکباب کوبیده',
+          description: '',
+          category: 'غذاهای ایرانی',
+          priceToman: 380000,
+        }),
+      },
+      { tenantId, draftId: row.id },
+    );
+    await page.goto('/dashboard/menu/ai-drafts?draft=' + row.id);
+    await expect(page.getByText('پیش‌نویس آماده بررسی است.')).toBeVisible();
+    await page.getByLabel('قیمت (تومان)', { exact: true }).fill('390000');
+    await page
+      .getByRole('button', { name: 'تأیید قیمت و انتشار', exact: true })
+      .click();
+    await expect(page.getByText('با تأیید شما به منو اضافه شد.')).toBeVisible();
+    const approved = await db.aiDraft.findUniqueOrThrow({
+      where: { id: row.id },
+    });
+    expect(approved.corrected).toBe(true);
+    const menu = await db.menuItem.findUniqueOrThrow({
+      where: { id: approved.menuItemId! },
+    });
+    expect(menu.priceRial).toBe(3900000);
+    await page.reload();
+    await expect(page.getByText('با تأیید شما به منو اضافه شد.')).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
+
+test('manager assistant saves a question, shows scoped facts and reopens after reload', async ({
+  browser,
+}) => {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    await login(page, 'MANAGER');
+    await page.goto('/dashboard/ai-assistant');
+    await page
+      .getByLabel('پرسش درباره شعبه جاری')
+      .fill('پرفروش‌ترین غذاهای هفت روز اخیر کدام‌اند؟');
+    await page.getByRole('button', { name: 'ثبت پرسش', exact: true }).click();
+    await expect(page.getByText('در صف', { exact: true })).toBeVisible();
+    const row = await db.aiAnalysis.findFirstOrThrow({
+      where: { tenantId, branchId },
+      orderBy: { createdAt: 'desc' },
+    });
+    const { processAnalysis } = await import('../apps/worker/src/analysis');
+    await processAnalysis(
+      db,
+      { plan: async () => ({ tool: 'TOP_SELLERS', period: 'LAST_7_DAYS' }) },
+      { tenantId, analysisId: row.id },
+    );
+    await expect(
+      page.getByRole('heading', {
+        name: 'پرفروش‌ترین اقلام سفارش‌های تکمیل‌شده',
+      }),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByText('لیموناد آزمون', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        'ارزش سفارش تکمیل‌شده، دریافت وجه یا سود نیست. اطلاعات پرداخت و هزینه مواد در این سامانه موجود نیست.',
+      ),
+    ).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByRole('heading', {
+        name: 'پرفروش‌ترین اقلام سفارش‌های تکمیل‌شده',
+      }),
+    ).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  } finally {
+    await context.close();
   }
 });

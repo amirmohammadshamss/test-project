@@ -40,6 +40,7 @@ export class ErrorFilter implements ExceptionFilter {
         code = 'INVALID_REFERENCE';
       }
     }
+    const cause = error instanceof Error ? error : null;
     console.error(
       JSON.stringify({
         timestamp: new Date().toISOString(),
@@ -51,6 +52,26 @@ export class ErrorFilter implements ExceptionFilter {
         operation: req.method + ' ' + req.path,
         errorCode: code,
         module: 'http',
+        ...(status >= 500
+          ? {
+              errorType:
+                cause?.name.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 80) ||
+                'UnknownError',
+              dependencyCode:
+                error instanceof Prisma.PrismaClientKnownRequestError
+                  ? error.code
+                  : undefined,
+              // Keep frame locations, never the first line (it can contain SQL/input/secrets).
+              frames: cause?.stack
+                ?.split('\n')
+                .slice(1)
+                .filter((line) => /^\s+at /.test(line))
+                .slice(0, 6)
+                .map((line) =>
+                  line.replace(/\([^)]*\)/g, '(location redacted)').trim(),
+                ),
+            }
+          : {}),
       }),
     );
     response

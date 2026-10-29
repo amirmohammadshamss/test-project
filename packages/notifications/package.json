@@ -1,0 +1,7 @@
+{
+  "name": "@restaurantos/notifications",
+  "private": true,
+  "nx": {
+    "includedScripts": []
+  }
+}

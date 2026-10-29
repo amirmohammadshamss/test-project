@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { seedDemoHistory } from './demo-history';
 import { hashPassword } from '../src/password';
 const db = new PrismaClient();
 export const ids = {
@@ -71,7 +72,14 @@ async function seed() {
     });
   }
   for (const tenantId of [ids.tenantA, ids.tenantB]) {
-    for (const category of ['برگر', 'پیتزا', 'نوشیدنی', 'پیش‌غذا', 'دسر'])
+    for (const category of [
+      'برگر',
+      'پیتزا',
+      'نوشیدنی',
+      'پیش‌غذا',
+      'دسر',
+      'غذاهای ایرانی',
+    ])
       await db.category.upsert({
         where: { tenantId_name: { tenantId, name: category } },
         create: { tenantId, name: category },
@@ -93,7 +101,32 @@ async function seed() {
       ['کیک شکلاتی', 'کیک شکلاتی با سس گرم', 145000, 'دسر'],
     ] as const;
     for (let index = 0; index < entries.length; index++) {
-      const [name, description, priceToman, categoryName] = entries[index];
+      const entry =
+        tenantId === ids.tenantB
+          ? (
+              [
+                [
+                  'چلوکباب کوبیده',
+                  'برنج ایرانی، گوجه کبابی و دو سیخ کوبیده',
+                  380000,
+                  'غذاهای ایرانی',
+                ],
+                [
+                  'زرشک پلو با مرغ',
+                  'مرغ و برنج زعفرانی',
+                  295000,
+                  'غذاهای ایرانی',
+                ],
+                ['قورمه‌سبزی', 'خورش با برنج', 265000, 'غذاهای ایرانی'],
+                ['جوجه کباب', 'جوجه زعفرانی با برنج', 345000, 'غذاهای ایرانی'],
+                ['دوغ بطری', 'نوشیدنی سرد', 45000, 'نوشیدنی'],
+                ['چای ایرانی', 'چای دم‌شده', 55000, 'نوشیدنی'],
+                ['سالاد شیرازی', 'خیار، گوجه و آب‌لیمو', 65000, 'پیش‌غذا'],
+                ['شله‌زرد', 'دسر زعفرانی', 75000, 'دسر'],
+              ] as const
+            )[index]
+          : entries[index];
+      const [name, description, priceToman, categoryName] = entry;
       const category = await db.category.findUniqueOrThrow({
         where: { tenantId_name: { tenantId, name: categoryName } },
       });
@@ -143,8 +176,13 @@ async function seed() {
       },
     });
   }
+  await seedDemoHistory(
+    db,
+    [ids.tenantA, ids.tenantB],
+    [ids.branchA, ids.branchB],
+  );
   console.log(
-    'Demo seed ready: 2 restaurants, 3 branches, 5 staff, Persian menu and sample orders.',
+    'Demo seed ready: 2 restaurants, 3 branches, 5 staff, distinct Persian menus, thirty days of fictional shift history and labeled fixtures.',
   );
 }
 seed().finally(() => db.$disconnect());

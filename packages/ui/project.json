@@ -1,0 +1,9 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "ui",
+  "sourceRoot": "packages/ui/src",
+  "projectType": "library",
+  "tags": ["type:ui", "platform:web"],
+  "implicitDependencies": ["shared"],
+  "targets": {}
+}

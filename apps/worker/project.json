@@ -4,7 +4,7 @@
   "sourceRoot": "apps/worker/src",
   "projectType": "application",
   "tags": ["type:app", "platform:node"],
-  "implicitDependencies": ["database", "shared"],
+  "implicitDependencies": ["database", "shared", "notifications", "insights"],
   "targets": {
     "build": {
       "executor": "nx:noop",

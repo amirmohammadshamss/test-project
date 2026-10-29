@@ -318,6 +318,9 @@ test('kitchen pagination reaches 101+ orders even if the cursor anchor stops mat
   ).toBe(true);
   await call('get', '/kitchen/orders?limit=101', 'backlog').expect(400);
   await call('get', '/kitchen/orders?cursor=invalid', 'backlog').expect(400);
+  await prisma.branchMembership.deleteMany({
+    where: { membershipId: membership.id, branchId: fixtureBranch.id },
+  });
 });
 test('logout revokes copied cookies but not independent sessions; repeated logout is safe', async () => {
   const a = await call('post', '/auth/login')

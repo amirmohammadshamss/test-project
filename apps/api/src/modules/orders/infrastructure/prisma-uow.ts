@@ -1,3 +1,4 @@
+import { recordNotificationEvent } from '../../../../../../packages/notifications/src/persistence';
 import { createHash } from 'node:crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
 import type {
@@ -147,6 +148,19 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
               version: order.version + 1,
             },
           );
+          if (
+            terminal ||
+            order.items.some((i) => ['PREPARING', 'READY'].includes(i.status))
+          )
+            await recordNotificationEvent(db, {
+              dedupeKey: `order:${order.id}:v${order.version + 1}:cancel`,
+              realm: 'RESTAURANT',
+              type: terminal ? 'ORDER_CANCELLED' : 'PREPARATION_CHANGED',
+              tenantId: actor.tenantId,
+              branchId: actor.branchId,
+              entityId: order.id,
+              payload: { version: order.version + 1 },
+            });
           return read(order.id);
         },
         lockOrder: async (id) => {
@@ -183,6 +197,15 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
               action: 'ORDER_CREATED',
             },
           });
+          await recordNotificationEvent(db, {
+            dedupeKey: `order:${order.id}:v1:new`,
+            realm: 'RESTAURANT',
+            type: 'NEW_ORDER',
+            tenantId: actor.tenantId,
+            branchId: actor.branchId,
+            entityId: order.id,
+            payload: { version: order.version, actionable: false },
+          });
           return order;
         },
         menu: async (id) => {
@@ -202,7 +225,7 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
             throw new BusinessError('CATEGORY_INACTIVE');
           return menu;
         },
-        append: async (order, menu, count) => {
+        append: async (order, menu, count, notes) => {
           const added = await db.orderItem.create({
             data: {
               ...scoped,
@@ -211,6 +234,7 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
               name: menu.name,
               priceRial: menu.priceRial,
               quantity: count,
+              notes: notes || '',
             },
           });
           changedItemId = added.id;
@@ -242,7 +266,44 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
               action,
             },
           });
-          return read(order.id);
+          const next = await read(order.id),
+            item = next.items.find((i) => i.id === changedItemId),
+            before = order.items.find((i) => i.id === changedItemId);
+          if (action === 'ITEM_ADDED' && order.items.length === 0)
+            await recordNotificationEvent(db, {
+              dedupeKey: `order:${order.id}:v${next.version}:new`,
+              realm: 'RESTAURANT',
+              type: 'NEW_ORDER',
+              tenantId: actor.tenantId,
+              branchId: actor.branchId,
+              entityId: order.id,
+              payload: { version: next.version, actionable: true },
+            });
+          if (item?.status === 'READY' && before?.status !== 'READY')
+            await recordNotificationEvent(db, {
+              dedupeKey: `order:${order.id}:v${next.version}:ready`,
+              realm: 'RESTAURANT',
+              type: 'ITEM_READY',
+              tenantId: actor.tenantId,
+              branchId: actor.branchId,
+              entityId: order.id,
+              payload: { version: next.version, itemId: item.id },
+            });
+          else if (
+            (action === 'ITEM_ADDED' ||
+              (item && before && item.quantity !== before.quantity)) &&
+            order.items.some((i) => ['PREPARING', 'READY'].includes(i.status))
+          )
+            await recordNotificationEvent(db, {
+              dedupeKey: `order:${order.id}:v${next.version}:prep-change`,
+              realm: 'RESTAURANT',
+              type: 'PREPARATION_CHANGED',
+              tenantId: actor.tenantId,
+              branchId: actor.branchId,
+              entityId: order.id,
+              payload: { version: next.version },
+            });
+          return next;
         },
       });
     });

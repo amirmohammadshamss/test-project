@@ -80,7 +80,7 @@
       "parallelism": false,
       "dependsOn": [
         {
-          "projects": ["api", "web"],
+          "projects": ["api", "web", "super-admin"],
           "target": "build"
         }
       ]

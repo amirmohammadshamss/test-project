@@ -78,6 +78,7 @@ export class OrdersController {
       input.menuItemId,
       input.quantity,
       key || '',
+      input.notes,
     );
   }
   @Patch('orders/:id/items/:itemId')

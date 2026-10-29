@@ -334,6 +334,42 @@ describe('HTTP security and workflow with real PostgreSQL', () => {
       data: { priceRial: originalPrice },
     });
   });
+  test('kitchen instructions are snapshotted, replay-safe and immutable after line creation', async () => {
+    const order = await open(),
+      requestKey = key();
+    const body = {
+      menuItemId: menuId,
+      quantity: 1,
+      notes: 'بدون قارچ؛ با سالن هماهنگ شود',
+    };
+    const added = await api()
+      .post(`/orders/${order.id}/items`)
+      .set('Idempotency-Key', requestKey)
+      .send(body)
+      .expect(201);
+    const repeated = await api()
+      .post(`/orders/${order.id}/items`)
+      .set('Idempotency-Key', requestKey)
+      .send(body)
+      .expect(201);
+    expect(repeated.body.items).toHaveLength(1);
+    expect(added.body.items[0].notes).toBe(body.notes);
+    await api()
+      .post(`/orders/${order.id}/items`)
+      .set('Idempotency-Key', requestKey)
+      .send({ ...body, notes: 'با قارچ' })
+      .expect(409);
+    const kitchen = await api('kitchen').get(`/orders/${order.id}`).expect(200);
+    expect(kitchen.body.items[0].notes).toBe(body.notes);
+    await api()
+      .patch(`/orders/${order.id}/items/${added.body.items[0].id}`)
+      .send({ version: 1, notes: 'تغییر پنهانی' })
+      .expect(400);
+    await api()
+      .post(`/orders/${order.id}/items`)
+      .send({ ...body, notes: 'a'.repeat(201) })
+      .expect(400);
+  });
   test('AI requests/results are tenant scoped and approval creates one menu entry', async () => {
     const requestKey = key();
     const payload = { input: 'چیزبرگر مخصوص، قیمت ۴۵۰ هزار تومان' };

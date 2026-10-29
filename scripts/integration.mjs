@@ -22,6 +22,7 @@ for (const args of [
     'packages/database/prisma/schema.prisma',
   ],
   ['--import', 'tsx', 'packages/database/prisma/seed.ts'],
+  ['--import', 'tsx', 'scripts/prepare-ai-integration-fixtures.ts'],
   [
     'node_modules/jest/bin/jest.js',
     '--config',

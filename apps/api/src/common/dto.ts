@@ -19,6 +19,7 @@ export class CreateOrderDto {
   @IsUUID() tableId!: string;
 }
 export class AddItemDto {
+  @IsOptional() @IsString() @Length(0, 200) notes?: string;
   @IsUUID() menuItemId!: string;
   @IsInt() @Min(1) @Max(99) quantity!: number;
 }

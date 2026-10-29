@@ -1,4 +1,5 @@
 'use client';
+import { NotificationCenter } from '../../../packages/ui/src/notification-center';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
@@ -118,7 +119,15 @@ export function PlatformPanel() {
       .then((x) => {
         setMe(x);
         sessionStorage.setItem('platform-actor', String(x.id));
-        if (path === '/' || path === '/login') router.replace('/dashboard');
+        if (path === '/' || path === '/login')
+          router.replace(
+            '/dashboard' +
+              (new URLSearchParams(window.location.search).get(
+                'notifications',
+              ) === '1'
+                ? '?notifications=1'
+                : ''),
+          );
       })
       .catch((e) => {
         if (path !== '/login') report(e);
@@ -165,7 +174,14 @@ export function PlatformPanel() {
       if (endpoint === '/auth/login') {
         sessionStorage.setItem('platform-actor', String(result.id));
         setMe(result);
-        router.replace('/dashboard');
+        router.replace(
+          '/dashboard' +
+            (new URLSearchParams(window.location.search).get(
+              'notifications',
+            ) === '1'
+              ? '?notifications=1'
+              : ''),
+        );
       } else router.push('/restaurants/' + result.id);
     } catch (e) {
       report(e);
@@ -234,6 +250,11 @@ export function PlatformPanel() {
     <main className="min-h-screen bg-slate-50 p-4 text-slate-900 md:p-8">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">مدیریت پلتفرم RestaurantOS</h1>
+        <NotificationCenter
+          key={JSON.stringify(me)}
+          scopeKey={JSON.stringify(me)}
+          platform
+        />
         <button
           className={button}
           onClick={async () => {

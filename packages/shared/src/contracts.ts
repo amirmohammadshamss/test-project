@@ -8,6 +8,8 @@ export interface Actor {
   role: Role;
   requestId?: string;
   sessionId?: string;
+  membershipId?: string;
+  tenantStatus?: 'ACTIVE' | 'SUSPENDED';
 }
 export interface MenuEntry {
   id: string;
@@ -21,6 +23,7 @@ export interface MenuEntry {
   version: number;
 }
 export interface Item {
+  notes?: string;
   id: string;
   menuItemId: string;
   name: string;

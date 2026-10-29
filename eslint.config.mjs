@@ -13,6 +13,10 @@ export default tseslint.config(
       'playwright-report/**',
     ],
   },
+  {
+    files: ['**/public/sw.js'],
+    languageOptions: { globals: { self: 'readonly', URL: 'readonly' } },
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

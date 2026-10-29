@@ -1,3 +1,4 @@
+import { LoginRateGuard } from '../../common/traffic';
 import {
   Body,
   Controller,
@@ -20,6 +21,7 @@ export class AuthController {
     @Inject(JwtService) private readonly jwt: JwtService,
     @Inject(AuthService) private readonly auth: AuthService,
   ) {}
+  @UseGuards(LoginRateGuard)
   @Post('login')
   @HttpCode(200)
   async login(

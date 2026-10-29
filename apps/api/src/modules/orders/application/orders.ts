@@ -64,19 +64,27 @@ export class Orders {
     menuItemId: string,
     count: number,
     key: string,
+    notes = '',
   ) {
     requireRole(actor, ['MANAGER', 'WAITER']);
     quantity(count);
+    if (typeof notes !== 'string' || notes.trim().length > 200)
+      throw new BusinessError('INVALID_INPUT', 400);
+    notes = notes.trim();
     return this.uow.run(
       actor,
-      { operation: `order.add.${id}`, key, payload: { menuItemId, count } },
+      {
+        operation: `order.add.${id}`,
+        key,
+        payload: { menuItemId, count, ...(notes ? { notes } : {}) },
+      },
       async (tx) => {
         const order = await tx.lockOrder(id);
         assertOpen(order);
         const menu = await tx.menu(menuItemId);
         if (!menu.active || !menu.available)
           throw new BusinessError('ITEM_UNAVAILABLE');
-        await tx.append(order, menu, count);
+        await tx.append(order, menu, count, notes);
         return tx.touch(order, 'ITEM_ADDED');
       },
     );

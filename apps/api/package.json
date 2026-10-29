@@ -1,0 +1,9 @@
+{
+  "name": "api",
+  "private": true,
+  "scripts": {
+    "dev": "tsc -p ../../tsconfig.json && node --env-file=../../.env --watch ../../dist/apps/api/src/main.js",
+    "build": "tsc -p ../../tsconfig.json",
+    "start": "node ../../dist/apps/api/src/main.js"
+  }
+}

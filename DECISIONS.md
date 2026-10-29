@@ -1,0 +1,11 @@
+# Architecture decisions
+
+1. **NestJS modular monolith plus Next.js:** required stack, independent HTTP and worker processes. Alternative: unified web server. Trade-off: more build/configuration work; reconsider if maintaining three processes dominates a small team's needs.
+2. **PostgreSQL transactions and parent order locks:** serialize invariants and append independent additions. Alternative: whole-order optimistic replacement. Trade-off: per-order contention, but no lost accepted additions.
+3. **Persisted idempotency result in business transaction:** retries replay results. Alternative: Redis-only deduplication. Trade-off: database storage and bounded retention; avoids queue/cache dependence for critical writes.
+4. **Polling:** five-second refresh is sufficient. Alternative: WebSockets. Trade-off: delayed visibility and periodic read load.
+5. **Application isolation plus composite constraints, no RLS initially:** explicit scoped access supports a short build. Alternative: PostgreSQL RLS. Trade-off: new query paths can omit filters; reconsider before broader production rollout and keep isolation regression tests mandatory.
+6. **Pending-draft reconciliation:** persisted requests are repeatedly enqueued with stable BullMQ IDs until terminal. Alternative: transactional outbox. Trade-off: polling recovery and retained queue jobs, not an exactly-once provider call guarantee. Persisted result/application is deduplicated.
+7. **Clean Architecture concentrated in critical workflows:** application ports hide transaction/ORM mechanics. Alternative: full layering for every CRUD field. Trade-off: smaller modules remain pragmatic rather than multiplying files without business value.
+
+Reconsider decisions 1 and 5 for the reasons above; they are accepted trade-offs, not claims of proven mistakes.

@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  MANAGER
+  WAITER
+  KITCHEN
+}
+
+enum OrderStatus {
+  OPEN
+  COMPLETED
+}
+
+enum ItemStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+}
+
+enum DraftStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+  APPROVED
+}
+
+model Restaurant {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  branches    Branch[]
+  memberships Membership[]
+  categories  Category[]
+  menuItems   MenuItem[]
+  drafts      AiDraft[]
+}
+
+model Branch {
+  id         String             @id @default(uuid()) @db.Uuid
+  tenantId   String             @db.Uuid
+  name       String
+  restaurant Restaurant         @relation(fields: [tenantId], references: [id])
+  access     BranchMembership[]
+  tables     RestaurantTable[]
+
+  @@unique([tenantId, id])
+}
+
+model User {
+  id           String       @id @default(uuid()) @db.Uuid
+  email        String       @unique
+  name         String
+  passwordHash String
+  memberships  Membership[]
+}
+
+model Membership {
+  id         String             @id @default(uuid()) @db.Uuid
+  tenantId   String             @db.Uuid
+  userId     String             @db.Uuid
+  role       Role
+  restaurant Restaurant         @relation(fields: [tenantId], references: [id])
+  user       User               @relation(fields: [userId], references: [id])
+  branches   BranchMembership[]
+
+  @@unique([tenantId, userId])
+  @@unique([tenantId, id])
+}
+
+model BranchMembership {
+  id           String     @id @default(uuid()) @db.Uuid
+  tenantId     String     @db.Uuid
+  membershipId String     @db.Uuid
+  branchId     String     @db.Uuid
+  membership   Membership @relation(fields: [tenantId, membershipId], references: [tenantId, id])
+  branch       Branch     @relation(fields: [tenantId, branchId], references: [tenantId, id])
+
+  @@unique([membershipId, branchId])
+}
+
+model RestaurantTable {
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @db.Uuid
+  branchId String  @db.Uuid
+  number   Int
+  seats    Int     @default(4)
+  branch   Branch  @relation(fields: [tenantId, branchId], references: [tenantId, id])
+  orders   Order[]
+
+  @@unique([tenantId, branchId, id])
+  @@unique([branchId, number])
+}
+
+model Category {
+  id         String     @id @default(uuid()) @db.Uuid
+  tenantId   String     @db.Uuid
+  name       String
+  restaurant Restaurant @relation(fields: [tenantId], references: [id])
+  items      MenuItem[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, name])
+}
+
+model MenuItem {
+  id            String      @id @default(uuid()) @db.Uuid
+  tenantId      String      @db.Uuid
+  categoryId    String      @db.Uuid
+  name          String
+  description   String
+  priceRial     Int
+  active        Boolean     @default(true)
+  available     Boolean     @default(true)
+  restaurant    Restaurant  @relation(fields: [tenantId], references: [id])
+  category      Category    @relation(fields: [tenantId, categoryId], references: [tenantId, id])
+  orderedItems  OrderItem[]
+  approvedDraft AiDraft?
+
+  @@unique([tenantId, id])
+}
+
+model Order {
+  id          String          @id @default(uuid()) @db.Uuid
+  tenantId    String          @db.Uuid
+  branchId    String          @db.Uuid
+  tableId     String          @db.Uuid
+  status      OrderStatus     @default(OPEN)
+  version     Int             @default(1)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  completedAt DateTime?       @db.Timestamptz(3)
+  table       RestaurantTable @relation(fields: [tenantId, branchId, tableId], references: [tenantId, branchId, id])
+  items       OrderItem[]
+  events      OrderEvent[]
+
+  @@unique([tenantId, branchId, id])
+  @@index([tenantId, branchId, status])
+}
+
+model OrderItem {
+  id         String     @id @default(uuid()) @db.Uuid
+  tenantId   String     @db.Uuid
+  branchId   String     @db.Uuid
+  orderId    String     @db.Uuid
+  menuItemId String     @db.Uuid
+  name       String
+  priceRial  Int
+  quantity   Int
+  status     ItemStatus @default(PENDING)
+  version    Int        @default(1)
+  createdAt  DateTime   @default(now()) @db.Timestamptz(3)
+  order      Order      @relation(fields: [tenantId, branchId, orderId], references: [tenantId, branchId, id])
+  menuItem   MenuItem   @relation(fields: [tenantId, menuItemId], references: [tenantId, id])
+
+  @@index([tenantId, branchId, status])
+}
+
+model OrderEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  branchId  String   @db.Uuid
+  orderId   String   @db.Uuid
+  actorId   String   @db.Uuid
+  action    String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  order     Order    @relation(fields: [tenantId, branchId, orderId], references: [tenantId, branchId, id])
+}
+
+model IdempotencyRecord {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  actorId     String   @db.Uuid
+  operation   String
+  key         String
+  fingerprint String
+  status      String   @default("COMPLETED")
+  response    Json
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt   DateTime @db.Timestamptz(3)
+
+  @@unique([tenantId, actorId, operation, key])
+  @@index([expiresAt])
+}
+
+model AiDraft {
+  id         String      @id @default(uuid()) @db.Uuid
+  tenantId   String      @db.Uuid
+  actorId    String      @db.Uuid
+  input      String
+  status     DraftStatus @default(PENDING)
+  result     Json?
+  errorCode  String?
+  attempts   Int         @default(0)
+  leaseUntil DateTime?   @db.Timestamptz(3)
+  leaseToken String?
+  menuItemId String?     @unique @db.Uuid
+  createdAt  DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime    @updatedAt @db.Timestamptz(3)
+  restaurant Restaurant  @relation(fields: [tenantId], references: [id])
+  menuItem   MenuItem?   @relation(fields: [tenantId, menuItemId], references: [tenantId, id])
+
+  @@unique([tenantId, menuItemId])
+  @@index([tenantId, status])
+}

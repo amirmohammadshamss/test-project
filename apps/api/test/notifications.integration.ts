@@ -4,7 +4,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { io, Socket } from 'socket.io-client';
 import webPush from 'web-push';
-import { processDraft } from '../../worker/src/processor';
+import { processAnalysis } from '../../worker/src/analysis';
 import { PermanentFailure } from '../../worker/src/provider';
 import { createApp } from '../src/app';
 import { prisma } from '../../../packages/database/src/client';
@@ -635,22 +635,22 @@ test('terminal AI failures notify only the requesting manager, not other manager
   await prisma.branchMembership.create({
     data: { tenantId, membershipId: membership.id, branchId },
   });
-  const draft = await call('post', '/ai/menu-drafts')
-    .send({ input: 'پیش‌نویس آزمایشی با قیمت مشخص' })
+  const draft = await call('post', '/ai/analyses')
+    .send({ question: 'گزارش آزمایشی از فروش امروز' })
     .expect(201);
   await expect(
-    processDraft(
+    processAnalysis(
       prisma,
       {
-        parse: async () => {
+        plan: async () => {
           throw new PermanentFailure('AI_INVALID_OUTPUT');
         },
       },
-      { tenantId, draftId: draft.body.id },
+      { tenantId, analysisId: draft.body.id },
     ),
   ).rejects.toThrow();
   const source = await prisma.notificationOutbox.findUniqueOrThrow({
-    where: { dedupeKey: 'ai-failed:' + draft.body.id },
+    where: { dedupeKey: 'analysis-failed:' + draft.body.id },
   });
   const notices = await notify(source.id);
   expect(notices.map((n) => n.recipientId)).toEqual([managerId]);

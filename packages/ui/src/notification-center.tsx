@@ -88,10 +88,7 @@ function appLink(
     return (
       '/dashboard/ai-assistant?analysis=' + encodeURIComponent(n.entityId || '')
     );
-  if (n.entityType === 'ai-draft')
-    return (
-      '/dashboard/menu/ai-drafts?draft=' + encodeURIComponent(n.entityId || '')
-    );
+  if (n.entityType === 'ai-draft') return '/dashboard/menu';
   return '/?notifications=1';
 }
 function keyBytes(key: string) {

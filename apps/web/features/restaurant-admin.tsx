@@ -1,6 +1,5 @@
 'use client';
 import { ManagerAssistant } from './manager-assistant';
-import { menuCategories } from '../../../packages/shared/src/menu-draft';
 import { NotificationCenter } from '../../../packages/ui/src/notification-center';
 import { useRestaurantRealtime } from '../lib/realtime';
 import Link from 'next/link';
@@ -75,17 +74,6 @@ type Dashboard = {
   readyItems: number;
   recentOrders: Order[];
   checkedAt: string;
-};
-type Draft = {
-  id: string;
-  status: string;
-  errorCode?: string;
-  result: {
-    name: string;
-    description: string;
-    category: string;
-    priceToman: number;
-  } | null;
 };
 const button =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#255a46] px-4 py-2 text-xs text-white disabled:cursor-not-allowed disabled:opacity-50';
@@ -186,7 +174,6 @@ const nav = [
   ['orders', 'سفارش‌ها'],
   ['tables', 'میزها'],
   ['menu', 'منو و دسته‌بندی'],
-  ['menu/ai-drafts', 'دستیار منو'],
   ['ai-assistant', 'دستیار گزارش مدیر'],
   ['staff', 'کارکنان'],
   ['settings', 'تنظیمات'],
@@ -217,24 +204,6 @@ export default function RestaurantAdminPanel() {
     kind: 'item' | 'category' | 'table';
     record?: Row;
   } | null>(null);
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [draftInput, setDraftInput] = useState('');
-  useEffect(() => {
-    if (section !== 'menu/ai-drafts') return;
-    const id = new URLSearchParams(window.location.search).get('draft');
-    if (!id) return;
-    let active = true;
-    api<Draft>('/admin/ai/menu-drafts/' + encodeURIComponent(id))
-      .then((d) => {
-        if (active) setDraft(d);
-      })
-      .catch(() => {
-        if (active) setError('پیش‌نویس در دسترس نیست.');
-      });
-    return () => {
-      active = false;
-    };
-  }, [section]);
   const data = snapshot?.path === pathname ? snapshot.value : null;
   useEffect(() => {
     api<
@@ -286,13 +255,6 @@ export default function RestaurantAdminPanel() {
     else if (section === 'orders') value = await api(`/admin/orders?${query}`);
     else if (section.startsWith('orders/'))
       value = await api(`/admin/orders/${section.split('/')[1]}`);
-    else if (section === 'menu/ai-drafts') {
-      const [drafts, metrics] = await Promise.all([
-        api<Draft[]>('/admin/ai/menu-drafts'),
-        api('/admin/ai/menu-drafts/metrics'),
-      ]);
-      value = { drafts, metrics };
-    }
     const [nextCategories, nextMenu] = await Promise.all([
       api<Category[]>('/admin/menu/categories'),
       api<Page<Menu>>('/admin/menu/items?pageSize=100'),
@@ -345,22 +307,6 @@ export default function RestaurantAdminPanel() {
         });
     },
   );
-  useEffect(() => {
-    if (!draft || !['PENDING', 'PROCESSING'].includes(draft.status)) return;
-    let active = true;
-    const timer = setInterval(async () => {
-      try {
-        const next = await api<Draft>(`/admin/ai/menu-drafts/${draft.id}`);
-        if (active) setDraft(next);
-      } catch {
-        if (active) setError('دریافت وضعیت پیش‌نویس ممکن نشد.');
-      }
-    }, 2000);
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
-  }, [draft]);
   async function mutate(action: () => Promise<unknown>, success?: () => void) {
     setBusy(true);
     setError('');
@@ -543,7 +489,7 @@ export default function RestaurantAdminPanel() {
           </p>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1>{title}</h1>
+              <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
               <p className="text-xs text-[#7b8580]">
                 اطلاعات همین رستوران و شعبه مجاز شما
               </p>
@@ -619,17 +565,15 @@ export default function RestaurantAdminPanel() {
                     ))}
                   </section>
                   <div className="mb-5 flex flex-wrap gap-2">
-                    {['orders', 'menu', 'tables', 'menu/ai-drafts'].map(
-                      (key) => (
-                        <Link
-                          className={secondary}
-                          key={key}
-                          href={`/dashboard/${key}`}
-                        >
-                          {nav.find((n) => n[0] === key)?.[1]}
-                        </Link>
-                      ),
-                    )}
+                    {['orders', 'menu', 'tables'].map((key) => (
+                      <Link
+                        className={secondary}
+                        key={key}
+                        href={`/dashboard/${key}`}
+                      >
+                        {nav.find((n) => n[0] === key)?.[1]}
+                      </Link>
+                    ))}
                   </div>
                   <section className="overflow-hidden rounded-xl border border-[#e5e9e2] bg-white">
                     <h2 className="p-5">سفارش‌های اخیر</h2>
@@ -1020,184 +964,6 @@ export default function RestaurantAdminPanel() {
             </section>
           ) : section === 'ai-assistant' ? (
             <ManagerAssistant />
-          ) : section === 'menu/ai-drafts' ? (
-            <section className={card}>
-              <h2>دستیار منوی فارسی</h2>
-              <p className="mb-5 text-xs text-[#7b8580]">
-                پیش‌نویس منتشر نمی‌شود تا قیمت و دسته‌بندی را بررسی و تأیید
-                کنید.
-              </p>
-              <form
-                className="space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void mutate(async () =>
-                    setDraft(
-                      await api<Draft>('/admin/ai/menu-drafts', 'POST', {
-                        input: draftInput,
-                      }),
-                    ),
-                  );
-                }}
-              >
-                <label>
-                  توضیحات یک غذا (قیمت دقیق به تومان)
-                  <textarea
-                    required
-                    minLength={5}
-                    maxLength={2000}
-                    value={draftInput}
-                    onChange={(e) => setDraftInput(e.target.value)}
-                    placeholder="چیزبرگر مخصوص، قیمت ۴۵۰ هزار تومان"
-                  />
-                </label>
-                <button
-                  className={button}
-                  disabled={
-                    busy ||
-                    Boolean(
-                      draft && ['PENDING', 'PROCESSING'].includes(draft.status),
-                    )
-                  }
-                >
-                  ساخت پیش‌نویس
-                </button>
-              </form>
-              <p className="mt-4 text-sm text-slate-600">
-                هر درخواست فقط یک غذا؛ برای چند غذا درخواست‌های جدا بفرستید. در
-                صورت خطا از ثبت دستی منو استفاده کنید. متن و پیش‌نویس تا ۳۰ روز
-                نگهداری می‌شود.
-              </p>
-              <details className="mt-4 rounded-lg border p-3">
-                <summary>اندازه‌گیری ۳۰ روز اخیر</summary>
-                <p className="mt-2 text-sm">
-                  تعدادها و توکن‌های گزارش‌شده شامل تلاش مجدد است؛ هزینه واقعی و
-                  زمان صرفه‌جویی‌شده هنوز اندازه‌گیری نشده است.
-                </p>
-                <p className="mt-2 text-sm">
-                  توکن ورودی گزارش‌شده:{' '}
-                  {number(
-                    (
-                      data as {
-                        metrics?: { totals?: { inputTokens?: number } };
-                      }
-                    )?.metrics?.totals?.inputTokens || 0,
-                  )}{' '}
-                  — توکن خروجی گزارش‌شده:{' '}
-                  {number(
-                    (
-                      data as {
-                        metrics?: { totals?: { outputTokens?: number } };
-                      }
-                    )?.metrics?.totals?.outputTokens || 0,
-                  )}{' '}
-                  — پیش‌نویس‌های اصلاح‌شده هنگام تأیید:{' '}
-                  {number(
-                    (data as { metrics?: { corrected?: number } })?.metrics
-                      ?.corrected || 0,
-                  )}
-                </p>
-              </details>
-              <h3 className="mt-5 font-bold">درخواست‌های اخیر (حداکثر ۵۰)</h3>
-              <ul className="my-3 grid gap-2">
-                {((data as { drafts?: Draft[] })?.drafts || []).map((d) => (
-                  <li key={d.id}>
-                    <button
-                      type="button"
-                      className={secondary}
-                      onClick={() => {
-                        void api<Draft>('/admin/ai/menu-drafts/' + d.id)
-                          .then(setDraft)
-                          .catch(() => setError('دریافت پیش‌نویس ممکن نشد.'));
-                      }}
-                    >
-                      باز کردن پیش‌نویس —{' '}
-                      {
-                        (
-                          {
-                            PENDING: 'در صف',
-                            PROCESSING: 'در حال پردازش',
-                            READY: 'آماده بررسی',
-                            APPROVED: 'منتشر شده',
-                            FAILED: 'ناموفق',
-                          } as Record<string, string>
-                        )[d.status]
-                      }
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {draft && (
-                <div className="mt-5 rounded-lg bg-[#f6f7f4] p-4">
-                  <p>
-                    {draft.status === 'FAILED'
-                      ? errors[draft.errorCode || ''] ||
-                        'ساخت پیش‌نویس انجام نشد. از ثبت دستی استفاده کنید.'
-                      : draft.status === 'APPROVED'
-                        ? 'با تأیید شما به منو اضافه شد.'
-                        : draft.status === 'READY'
-                          ? 'پیش‌نویس آماده بررسی است.'
-                          : 'درخواست ذخیره شده و در انتظار پردازش است.'}
-                  </p>
-                  {draft.status === 'READY' && draft.result && (
-                    <form
-                      key={draft.id}
-                      className="mt-4 grid gap-4 sm:grid-cols-2"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const f = new FormData(e.currentTarget);
-                        void mutate(
-                          () =>
-                            api(
-                              `/admin/ai/menu-drafts/${draft.id}/approve`,
-                              'POST',
-                              {
-                                name: f.get('name'),
-                                description: f.get('description'),
-                                category: f.get('category'),
-                                priceToman: Number(f.get('priceToman')),
-                              },
-                            ),
-                          () => setDraft({ ...draft, status: 'APPROVED' }),
-                        );
-                      }}
-                    >
-                      <Field
-                        name="name"
-                        label="نام غذا"
-                        value={draft.result.name}
-                      />
-                      <Field
-                        name="priceToman"
-                        label="قیمت (تومان)"
-                        type="number"
-                        value={draft.result.priceToman}
-                      />
-                      <Field
-                        name="description"
-                        label="توضیحات"
-                        value={draft.result.description}
-                        required={false}
-                      />
-                      <label>
-                        دسته‌بندی
-                        <select
-                          name="category"
-                          defaultValue={draft.result.category}
-                        >
-                          {menuCategories.map((c) => (
-                            <option key={c}>{c}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <button className={button} disabled={busy}>
-                        تأیید قیمت و انتشار
-                      </button>
-                    </form>
-                  )}
-                </div>
-              )}
-            </section>
           ) : (
             <div className={card}>صفحه پیدا نشد.</div>
           )}

@@ -8,7 +8,6 @@ import { api, ApiError, errors, localDate, money, number } from '../lib/api';
 import type {
   Actor,
   KitchenPage,
-  DraftValue,
   MenuEntry,
   OrderView,
 } from '../../../packages/shared/src/contracts';
@@ -39,12 +38,6 @@ type Order = OrderView & {
 type Category = {
   id: string;
   name: string;
-};
-type Draft = {
-  id: string;
-  status: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED' | 'APPROVED';
-  result: DraftValue | null;
-  errorCode?: string;
 };
 type View = 'tables' | 'kitchen' | 'menu' | 'history';
 const statusLabels = {
@@ -198,7 +191,6 @@ export default function RestaurantApp() {
   const [category, setCategory] = useState('all');
   const [filter, setFilter] = useState('all');
   const [editor, setEditor] = useState<Menu | 'new' | null>(null);
-  const [aiOpen, setAiOpen] = useState(false);
   const scope = `${me?.userId || ''}:${me?.tenantId || ''}:${me?.branchId || ''}:${view}:${selected || ''}:${kitchenCursor}`;
   const refreshSequence = useRef(0);
   const scopeRef = useRef(scope);
@@ -395,7 +387,6 @@ export default function RestaurantApp() {
         setOrders([]);
         setCategories([]);
         setEditor(null);
-        setAiOpen(false);
         sessionStorage.setItem(
           'restaurantos-actor',
           `${user.userId}:${user.tenantId}:${user.branchId}`,
@@ -427,7 +418,6 @@ export default function RestaurantApp() {
         setOrders([]);
         setCategories([]);
         setEditor(null);
-        setAiOpen(false);
         sessionStorage.removeItem('restaurantos-actor');
       },
       false,
@@ -799,13 +789,6 @@ export default function RestaurantApp() {
                 </button>
               ) : view === 'menu' ? (
                 <>
-                  <button
-                    {...ui('secondary ai-button')}
-                    onClick={() => setAiOpen(true)}
-                  >
-                    <Icon name="spark" />
-                    دستیار منو
-                  </button>
                   <button {...ui('primary')} onClick={() => setEditor('new')}>
                     <Icon name="plus" />
                     افزودن غذا
@@ -1604,15 +1587,6 @@ export default function RestaurantApp() {
           }
         />
       )}
-      {aiOpen && (
-        <AiPanel
-          onClose={() => setAiOpen(false)}
-          onPublished={() => {
-            void act(refresh, apply);
-            setNotice('غذای تأییدشده به منو اضافه شد.');
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -1730,210 +1704,6 @@ function MenuEditor({
             {busy ? 'در حال ذخیره…' : 'ذخیره اطلاعات'}
           </button>
         </form>
-      </section>
-    </div>
-  );
-}
-function AiPanel({
-  onClose,
-  onPublished,
-}: {
-  onClose: () => void;
-  onPublished: () => void;
-}) {
-  const [input, setInput] = useState('');
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [value, setValue] = useState<DraftValue | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    if (!draft || !['PENDING', 'PROCESSING'].includes(draft.status)) return;
-    let active = true;
-    const timer = setInterval(async () => {
-      try {
-        const next = await api<Draft>(`/ai/menu-drafts/${draft.id}`);
-        if (active) {
-          setDraft(next);
-          if (next.result) setValue(next.result);
-        }
-      } catch {
-        if (active) setError('دریافت وضعیت ممکن نشد. ارتباط را بررسی کنید.');
-      }
-    }, 2000);
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
-  }, [draft]);
-  async function generate(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    try {
-      const next = await api<Draft>('/ai/menu-drafts', 'POST', { input });
-      setDraft(next);
-      setValue(next.result);
-    } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? errors[e.code] || 'ارسال درخواست ممکن نشد.'
-          : 'خطای ارتباط',
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function approve(e: FormEvent) {
-    e.preventDefault();
-    if (!draft || !value) return;
-    setBusy(true);
-    setError('');
-    try {
-      await api(`/ai/menu-drafts/${draft.id}/approve`, 'POST', value);
-      setDraft({ ...draft, status: 'APPROVED' });
-      onPublished();
-    } catch (e) {
-      setError(
-        e instanceof ApiError
-          ? errors[e.code] || 'تأیید پیش‌نویس ممکن نشد.'
-          : 'خطای ارتباط',
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div {...ui('modal-backdrop')}>
-      <section
-        {...ui('modal ai-modal')}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="ai-title"
-      >
-        <header>
-          <div>
-            <span {...ui('eyebrow')}>
-              <Icon name="spark" size={16} />
-              دستیار هوشمند
-            </span>
-            <h2 id="ai-title">از توضیح شما تا پیش‌نویس منو</h2>
-          </div>
-          <button aria-label="بستن" onClick={onClose}>
-            ×
-          </button>
-        </header>
-        <p {...ui('muted')}>
-          غذا را به زبان خودتان توضیح دهید. نام، توضیحات و قیمت پیشنهادی را پیش
-          از انتشار بررسی کنید.
-        </p>
-        {(!draft || draft.status === 'FAILED') && (
-          <form onSubmit={generate}>
-            <label>
-              توضیحات غذا
-              <textarea
-                placeholder="چیزبرگر مخصوص با ۲۰۰ گرم گوشت و پنیر گودا، قیمت ۴۵۰ هزار تومان"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                minLength={5}
-                maxLength={2000}
-                required
-              />
-            </label>
-            <button {...ui('primary')} disabled={busy}>
-              {busy ? 'در حال ارسال…' : 'ساخت پیش‌نویس'}
-              <Icon name="spark" size={16} />
-            </button>
-          </form>
-        )}
-        {draft && ['PENDING', 'PROCESSING'].includes(draft.status) && (
-          <div {...ui('ai-processing')}>
-            <span {...ui('spinner')} />
-            <h3>در حال ساخت پیش‌نویس</h3>
-            <p>
-              درخواست ذخیره شده است. پس از پردازش، نتیجه اینجا نمایش داده
-              می‌شود.
-            </p>
-          </div>
-        )}
-        {draft?.status === 'FAILED' && (
-          <p {...ui('form-error')}>
-            {errors[draft.errorCode || ''] ||
-              'ساخت پیش‌نویس انجام نشد. دوباره تلاش کنید یا غذا را دستی وارد کنید.'}
-          </p>
-        )}
-        {draft?.status === 'READY' && value && (
-          <form onSubmit={approve}>
-            <div {...ui('review-note')}>
-              این اطلاعات هنوز منتشر نشده‌اند. قیمت و جزئیات را بررسی و اصلاح
-              کنید.
-            </div>
-            <label>
-              نام غذا
-              <input
-                value={value.name}
-                onChange={(e) => setValue({ ...value, name: e.target.value })}
-                required
-                maxLength={100}
-              />
-            </label>
-            <label>
-              توضیحات
-              <textarea
-                value={value.description}
-                onChange={(e) =>
-                  setValue({ ...value, description: e.target.value })
-                }
-                maxLength={1000}
-              />
-            </label>
-            <div {...ui('form-grid')}>
-              <label>
-                قیمت (تومان)
-                <input
-                  type="number"
-                  min="1"
-                  max="100000000"
-                  step="1"
-                  value={value.priceToman}
-                  onChange={(e) =>
-                    setValue({ ...value, priceToman: Number(e.target.value) })
-                  }
-                  required
-                />
-              </label>
-              <label>
-                دسته‌بندی
-                <select
-                  value={value.category}
-                  onChange={(e) =>
-                    setValue({ ...value, category: e.target.value })
-                  }
-                >
-                  {['برگر', 'پیتزا', 'نوشیدنی', 'پیش‌غذا', 'دسر'].map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <button {...ui('primary')} disabled={busy}>
-              تأیید قیمت و انتشار در منو
-            </button>
-          </form>
-        )}
-        {draft?.status === 'APPROVED' && (
-          <div {...ui('ai-processing')}>
-            <Icon name="check" size={36} />
-            <h3>به منو اضافه شد</h3>
-            <button {...ui('secondary')} onClick={onClose}>
-              بازگشت به منو
-            </button>
-          </div>
-        )}
-        {error && (
-          <p {...ui('form-error')} role="alert">
-            {error}
-          </p>
-        )}
       </section>
     </div>
   );

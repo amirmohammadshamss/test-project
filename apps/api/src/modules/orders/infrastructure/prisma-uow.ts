@@ -243,7 +243,15 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
           changedItemId = item.id;
           const updated = await db.orderItem.updateMany({
             where: { ...scoped, id: item.id, version: item.version },
-            data: { ...change, version: { increment: 1 } },
+            data: {
+              ...change,
+              version: { increment: 1 },
+              ...(change.status === 'PREPARING'
+                ? { preparingAt: new Date() }
+                : {}),
+              ...(change.status === 'READY' ? { readyAt: new Date() } : {}),
+              ...(change.status === 'SERVED' ? { servedAt: new Date() } : {}),
+            },
           });
           if (!updated.count) throw new BusinessError('VERSION_CONFLICT');
         },

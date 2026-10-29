@@ -91,3 +91,18 @@ Final local smoke after restart: manager access to saved AI analyses/history suc
 ## Assessment hardening verification
 
 Full pipeline passed: 25 unit tests, 66 database/Redis integration tests, TypeScript, lint, formatting and all production builds. Chromium passed 10 workflows, including kitchen instruction entry/display. New checks cover per-account proxy throttling, separate authenticated AI identities, ignored spoofed forwarded headers, provider-aware smoke policy, safe error diagnostics, instruction validation, immutable snapshots and idempotent replay. All seven migrations applied on a fresh isolated database. The seed produced 126 orders/366 lines/368 events plus useful labeled notifications and AI fixtures; two reruns preserved counts and reviewer edits/read state. No live model was called.
+
+## User-requested operational analytics
+
+- Local migration eight applied to the demo and dedicated test databases; nullable chronological item timestamps preserve legacy records.
+- Full integration run: 69 tests passed. After adding a closed-first-day history correction and additional branch/empty-data cases, the targeted analytics suite passed all four tests. Prior suites were not rerun without a reason; the final new total is 70 integration cases.
+- Final unit suite: 30 tests passed; backend TypeScript compilation, web TypeScript/build and targeted lint/format checks passed.
+- Chromium: all 11 workflows passed, including the four direct reports, insufficient-data messages, mobile RTL and kitchen timing/order regression flows.
+- Live AvalAI routing evaluation: 12 of 13 fixed questions matched tool and period; zero provider errors, 4,572 reported input and 187 output tokens, elapsed 55,863 ms. Billed cost was not measured. A separate four-question probe for the new reports matched all four. Model routing is imperfect and direct report buttons remain available independently.
+- New PostgreSQL fixtures cover 56 complete demand days, real menu pair support, measured preparation/queue times, cross-tenant and same-tenant branch exclusion, denied caller-supplied scope, empty data, and idempotent kitchen transition timestamps. No real restaurant forecast accuracy, holiday behavior or measured business time savings is claimed.
+
+## Menu assistant retirement
+
+Owner-requested removal deletes menu-draft HTTP controllers/repositories and both UI entry points, stops registering the menu-processing worker, redirects old links to manual menu, removes the package evaluation command and stops creating new demo drafts. Historical draft rows are preserved but excluded from manager report quota. The shared worker heartbeat now comes from the active manager-analysis dispatcher. PostgreSQL/Redis integration: 69 tests passed; unit suite: 30 passed; backend/frontend type checking, production web build and targeted lint passed. Retired endpoint tests assert 404; manager reporting and manual menu APIs remain covered. Smoke now exercises manager analysis rather than removed menu drafting.
+
+Final retirement verification: all 11 Chromium workflows passed, including absent menu-assistant controls, legacy-link redirect, manual-menu entry availability and the retained manager reports. The restarted local stack passed the full waiter/kitchen smoke and a queued live AvalAI manager-analysis request.

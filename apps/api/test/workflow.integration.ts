@@ -370,50 +370,12 @@ describe('HTTP security and workflow with real PostgreSQL', () => {
       .send({ ...body, notes: 'a'.repeat(201) })
       .expect(400);
   });
-  test('AI requests/results are tenant scoped and approval creates one menu entry', async () => {
-    const requestKey = key();
-    const payload = { input: 'چیزبرگر مخصوص، قیمت ۴۵۰ هزار تومان' };
-    const draft = await api('manager')
-      .post('/ai/menu-drafts')
-      .set('Idempotency-Key', requestKey)
-      .send(payload)
-      .expect(201);
-    const replay = await api('manager')
-      .post('/ai/menu-drafts')
-      .set('Idempotency-Key', requestKey)
-      .send(payload)
-      .expect(201);
-    expect(replay.body.id).toBe(draft.body.id);
-    await api('other').get(`/ai/menu-drafts/${draft.body.id}`).expect(404);
-    await api('waiter').get(`/ai/menu-drafts/${draft.body.id}`).expect(403);
-    const approved = {
-      name: 'برگر تست',
-      description: 'توضیحات تست',
-      category: 'برگر',
-      priceToman: 450000,
-    };
+  test('retired menu assistant endpoints are absent', async () => {
     await api('manager')
-      .post(`/ai/menu-drafts/${draft.body.id}/approve`)
-      .send(approved)
-      .expect(409);
-    await prisma.aiDraft.update({
-      where: { id: draft.body.id },
-      data: { status: 'READY', result: approved },
-    });
-    const a = await api('manager')
-      .post(`/ai/menu-drafts/${draft.body.id}/approve`)
-      .send(approved)
-      .expect(201);
-    const b = await api('manager')
-      .post(`/ai/menu-drafts/${draft.body.id}/approve`)
-      .send(approved)
-      .expect(201);
-    expect(a.body.id).toBe(b.body.id);
-    expect(a.body.priceRial).toBe(4500000);
-    await api('other')
-      .post(`/ai/menu-drafts/${draft.body.id}/approve`)
-      .send(approved)
+      .post('/ai/menu-drafts')
+      .send({ input: 'غذا' })
       .expect(404);
+    await api('manager').get('/admin/ai/menu-drafts').expect(404);
   });
 });
 

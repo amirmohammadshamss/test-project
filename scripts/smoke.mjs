@@ -108,18 +108,17 @@ let providerVerified = false;
 if (process.env.SMOKE_SKIP_AI !== '1') {
   const draft = (
     await call(
-      '/ai/menu-drafts',
+      '/ai/analyses',
       'POST',
-      { input: 'چیزبرگر مخصوص با گوشت، قیمت ۴۵۰ هزار تومان' },
+      { question: 'پرفروش‌ترین غذاهای امروز کدام‌اند؟' },
       manager,
     )
   ).json;
   const policy = smokeAiPolicy();
   let state;
   for (let i = 0; i < 150; i++) {
-    state = (
-      await call(`/ai/menu-drafts/${draft.id}`, 'GET', undefined, manager)
-    ).json;
+    state = (await call(`/ai/analyses/${draft.id}`, 'GET', undefined, manager))
+      .json;
     if (['READY', 'FAILED'].includes(state.status)) break;
     await new Promise((resolve) => setTimeout(resolve, 500));
   }

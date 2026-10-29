@@ -17,7 +17,7 @@ import {
 } from './processor';
 import { AnalysisWorkerRuntime } from './analysis';
 import { configuredManagerPlanner } from './provider';
-import { MenuParser, configuredMenuParser } from './provider';
+import { MenuParser } from './provider';
 export class AiWorkerRuntime implements OnModuleInit, OnModuleDestroy {
   private queue!: Queue<DraftJob>;
   private worker!: Worker<DraftJob>;
@@ -95,10 +95,6 @@ class WorkerDatabaseLifecycle implements OnApplicationShutdown {
     {
       provide: NotificationWorkerRuntime,
       useFactory: () => new NotificationWorkerRuntime(prisma),
-    },
-    {
-      provide: AiWorkerRuntime,
-      useFactory: () => new AiWorkerRuntime(prisma, configuredMenuParser()),
     },
   ],
 })

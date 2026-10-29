@@ -1,4 +1,9 @@
 import {
+  managerPlanSchema,
+  type ManagerPlan,
+} from '../../../../../packages/shared/src/manager-analysis';
+import { executeManagerReport } from '../../../../../packages/insights/src/report';
+import {
   Inject,
   Injectable,
   Controller,
@@ -9,6 +14,7 @@ import {
   ParseUUIDPipe,
   Headers,
   Req,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { IsString, Length } from 'class-validator';
@@ -21,6 +27,7 @@ export class AnalysisDto {
   @IsString() @Length(5, 1000) question!: string;
 }
 export abstract class AnalysisRepository {
+  abstract report(actor: Actor, plan: ManagerPlan): Promise<unknown>;
   abstract request(
     actor: Actor,
     question: string,
@@ -37,6 +44,22 @@ const owner = (actor: Actor) => ({
 });
 @Injectable()
 export class PrismaAnalysisRepository extends AnalysisRepository {
+  async report(actor: Actor, plan: ManagerPlan) {
+    requireRole(actor, ['MANAGER']);
+    if (!actor.membershipId) throw new BusinessError('FORBIDDEN', 403);
+    try {
+      return await executeManagerReport(
+        prisma,
+        { ...owner(actor), membershipId: actor.membershipId },
+        plan,
+        new Date(),
+      );
+    } catch (e) {
+      if (e instanceof Error && e.message === 'AI_ACCESS_REVOKED')
+        throw new BusinessError('FORBIDDEN', 403);
+      throw e;
+    }
+  }
   request(actor: Actor, question: string, key: string) {
     requireRole(actor, ['MANAGER']);
     if (!actor.membershipId) throw new BusinessError('FORBIDDEN', 403);
@@ -53,16 +76,10 @@ export class PrismaAnalysisRepository extends AnalysisRepository {
             : 20;
         const start = new Date();
         start.setUTCHours(0, 0, 0, 0);
-        const [menus, analyses] = await Promise.all([
-          tx.aiDraft.count({
-            where: { tenantId: actor.tenantId, createdAt: { gte: start } },
-          }),
-          tx.aiAnalysis.count({
-            where: { tenantId: actor.tenantId, createdAt: { gte: start } },
-          }),
-        ]);
-        if (menus + analyses >= limit)
-          throw new BusinessError('AI_DAILY_LIMIT', 429);
+        const analyses = await tx.aiAnalysis.count({
+          where: { tenantId: actor.tenantId, createdAt: { gte: start } },
+        });
+        if (analyses >= limit) throw new BusinessError('AI_DAILY_LIMIT', 429);
         return tx.aiAnalysis.create({
           data: {
             ...owner(actor),
@@ -102,6 +119,11 @@ export class AnalysisService {
   constructor(
     @Inject(AnalysisRepository) private readonly repository: AnalysisRepository,
   ) {}
+  report(actor: Actor, query: unknown) {
+    const parsed = managerPlanSchema.safeParse(query);
+    if (!parsed.success) throw new BusinessError('VALIDATION_ERROR', 400);
+    return this.repository.report(actor, parsed.data);
+  }
   request(actor: Actor, input: AnalysisDto, key: string) {
     return this.repository.request(actor, input.question, key);
   }
@@ -128,6 +150,12 @@ export class AnalysisController {
   }
   @Get() list(@Req() r: AuthRequest) {
     return this.service.list(r.actor);
+  }
+  @Get('reports') report(
+    @Req() r: AuthRequest,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.service.report(r.actor, query);
   }
   @Get(':id') get(
     @Req() r: AuthRequest,

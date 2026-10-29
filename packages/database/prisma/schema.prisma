@@ -202,11 +202,15 @@ model Order {
 
   @@unique([tenantId, branchId, id])
   @@index([tenantId, branchId, status])
+  @@index([tenantId, branchId, createdAt])
   @@index([tenantId, branchId, completedAt])
   @@index([tenantId, branchId, cancelledAt])
 }
 
 model OrderItem {
+  preparingAt             DateTime?  @db.Timestamptz(3)
+  readyAt                 DateTime?  @db.Timestamptz(3)
+  servedAt                DateTime?  @db.Timestamptz(3)
   notes                   String     @default("")
   cancelledAt             DateTime?  @db.Timestamptz(3)
   cancelledBy             String?    @db.Uuid
@@ -228,6 +232,7 @@ model OrderItem {
 
   @@index([tenantId, branchId, status])
   @@index([tenantId, branchId, cancelledAt])
+  @@index([tenantId, branchId, readyAt])
 }
 
 model OrderEvent {

@@ -10,9 +10,17 @@ Deployment update: commit `c164433` was built and tested over trusted HTTPS on t
 
 Local PostgreSQL migrations/seeding, the NestJS API/worker, Next.js production build, and automated tests have been exercised. Real Chromium staff-workflow and kitchen pagination tests now pass, including responsive overflow checks. Docker runtime, remote GitHub Actions, live AI responses, public HTTPS hosting, and the required recording remain **unverified/incomplete**. The admin expansion adds routed manager and separate platform interfaces; see [ADMIN_IMPLEMENTATION.md](./ADMIN_IMPLEMENTATION.md) for setup and current verification. See [VERIFICATION.md](./VERIFICATION.md). This is not a claim of full RFP acceptance.
 
+## Menu assistant removed
+
+At the owner’s request, AI menu drafting/publication is removed from both interfaces and REST APIs, and its queue is no longer started. Manual menu management and the manager analytics assistant remain available. Earlier AI-menu documentation describes historical scope, not a current feature. Existing database history is preserved without destructive migration.
+
+## Operational analytics
+
+The manager report assistant now includes direct sales trends, menu combinations/review, statistical daily/hourly demand forecasts and measured kitchen delays. Open `/dashboard/ai-assistant` locally. See [OPERATIONAL_ANALYTICS.md](OPERATIONAL_ANALYTICS.md) for minimum data, workflow and limitations. These changes are local; production activation is not claimed.
+
 ## Requirements
 
-Node.js 22+, pnpm 10.32.1, PostgreSQL 16, Redis 7+; alternatively Docker with Compose. No external fonts or image service are needed. AI is optional for ordering; live menu parsing requires an explicitly configured eligible provider or self-hosted model.
+Node.js 22+, pnpm 10.32.1, PostgreSQL 16, Redis 7+; alternatively Docker with Compose. No external fonts or image service are needed. AI is optional for ordering; natural-language manager report routing requires an explicitly configured provider or self-hosted model.
 
 ## Run with Docker Compose
 

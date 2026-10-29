@@ -43,11 +43,11 @@ test('authenticated AI burst limits do not couple separate tenant users on the s
   ).expect(200);
   const post = (cookie: string) =>
     request(app.getHttpServer())
-      .post('/api/v1/ai/menu-drafts')
+      .post('/api/v1/ai/analyses')
       .set('Cookie', cookie)
       .set('X-CSRF-Protection', '1')
       .set('Idempotency-Key', randomUUID())
-      .send({ input: 'x' });
+      .send({ question: 'x' });
   const cookie = manager.headers['set-cookie'][0].split(';')[0];
   for (let i = 0; i < 15; i++) await post(cookie).expect(400);
   await post(cookie).expect(429);

@@ -529,57 +529,25 @@ test('suspended manager sees only the restricted suspension notification center'
   }
 });
 
-test('manager reopens a completed Persian AI draft and explicitly edits and publishes it', async ({
+test('menu assistant is absent and old links lead to manual menu', async ({
   browser,
 }) => {
   const context = await browser.newContext();
   try {
     const page = await context.newPage();
     await login(page, 'MANAGER');
-    await page.goto('/dashboard/menu/ai-drafts');
-    await page
-      .getByLabel('توضیحات یک غذا (قیمت دقیق به تومان)')
-      .fill('چلوکباب کوبیده ۳۸۰ هزار تومان');
-    await page
-      .getByRole('button', { name: 'ساخت پیش‌نویس', exact: true })
-      .click();
+    await page.goto('/dashboard/menu');
     await expect(
-      page.getByText('درخواست ذخیره شده و در انتظار پردازش است.'),
+      page.getByRole('link', { name: 'دستیار منو', exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: 'دستیار منو', exact: true }),
+    ).toHaveCount(0);
+    await page.goto('/dashboard/menu/ai-drafts?draft=legacy');
+    await expect(page).toHaveURL(/\/dashboard\/menu$/);
+    await expect(
+      page.getByRole('button', { name: 'غذای تازه', exact: true }),
     ).toBeVisible();
-    const row = await db.aiDraft.findFirstOrThrow({
-      where: { tenantId },
-      orderBy: { createdAt: 'desc' },
-    });
-    const { processDraft } = await import('../apps/worker/src/processor');
-    await processDraft(
-      db,
-      {
-        parse: async () => ({
-          name: 'چلوکباب کوبیده',
-          description: '',
-          category: 'غذاهای ایرانی',
-          priceToman: 380000,
-        }),
-      },
-      { tenantId, draftId: row.id },
-    );
-    await page.goto('/dashboard/menu/ai-drafts?draft=' + row.id);
-    await expect(page.getByText('پیش‌نویس آماده بررسی است.')).toBeVisible();
-    await page.getByLabel('قیمت (تومان)', { exact: true }).fill('390000');
-    await page
-      .getByRole('button', { name: 'تأیید قیمت و انتشار', exact: true })
-      .click();
-    await expect(page.getByText('با تأیید شما به منو اضافه شد.')).toBeVisible();
-    const approved = await db.aiDraft.findUniqueOrThrow({
-      where: { id: row.id },
-    });
-    expect(approved.corrected).toBe(true);
-    const menu = await db.menuItem.findUniqueOrThrow({
-      where: { id: approved.menuItemId! },
-    });
-    expect(menu.priceRial).toBe(3900000);
-    await page.reload();
-    await expect(page.getByText('با تأیید شما به منو اضافه شد.')).toBeVisible();
   } finally {
     await context.close();
   }
@@ -588,6 +556,30 @@ test('manager reopens a completed Persian AI draft and explicitly edits and publ
 test('manager assistant saves a question, shows scoped facts and reopens after reload', async ({
   browser,
 }) => {
+  // This report test owns its completed sale instead of relying on an earlier browser test.
+  const table = await db.restaurantTable.findFirstOrThrow({
+    where: { tenantId, branchId },
+  });
+  const menu = await db.menuItem.findUniqueOrThrow({ where: { id: menuId } });
+  await db.order.create({
+    data: {
+      tenantId,
+      branchId,
+      tableId: table.id,
+      status: 'COMPLETED',
+      createdAt: new Date(Date.now() - 60000),
+      completedAt: new Date(Date.now() - 1000),
+      items: {
+        create: {
+          menuItemId: menuId,
+          name: menu.name,
+          priceRial: menu.priceRial,
+          quantity: 1,
+          status: 'SERVED',
+        },
+      },
+    },
+  });
   const context = await browser.newContext();
   try {
     const page = await context.newPage();
@@ -597,7 +589,11 @@ test('manager assistant saves a question, shows scoped facts and reopens after r
       .getByLabel('پرسش درباره شعبه جاری')
       .fill('پرفروش‌ترین غذاهای هفت روز اخیر کدام‌اند؟');
     await page.getByRole('button', { name: 'ثبت پرسش', exact: true }).click();
-    await expect(page.getByText('در صف', { exact: true })).toBeVisible();
+    await expect(
+      page
+        .locator('article')
+        .getByRole('heading', { name: 'در صف', exact: true }),
+    ).toBeVisible();
     const row = await db.aiAnalysis.findFirstOrThrow({
       where: { tenantId, branchId },
       orderBy: { createdAt: 'desc' },
@@ -616,6 +612,9 @@ test('manager assistant saves a question, shows scoped facts and reopens after r
     await expect(
       page.getByText('لیموناد آزمون', { exact: true }),
     ).toBeVisible();
+    await page
+      .getByText('نکات و محدودیت‌های این گزارش', { exact: false })
+      .click();
     await expect(
       page.getByText(
         'ارزش سفارش تکمیل‌شده، دریافت وجه یا سود نیست. اطلاعات پرداخت و هزینه مواد در این سامانه موجود نیست.',
@@ -633,6 +632,63 @@ test('manager assistant saves a question, shows scoped facts and reopens after r
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
     ).toBe(true);
+  } finally {
+    await context.close();
+  }
+});
+
+test('manager opens four operational reports without a model and sees honest insufficient-data states on mobile', async ({
+  browser,
+}) => {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    await login(page, 'MANAGER');
+    await page.setViewportSize({ width: 1440, height: 1050 });
+    await page.goto('/dashboard/ai-assistant');
+    await expect(
+      page.getByRole('heading', { name: 'گزارش‌های آماده' }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: 'test-results/manager-assistant-desktop.png',
+      fullPage: true,
+    });
+    await page.getByLabel('بازه گزارش').selectOption('LAST_7_DAYS');
+    for (const [button, title] of [
+      ['تحلیل فروش و روندها', 'روند فروش و تغییر غذاهای پرفروش'],
+      ['پیشنهاد منو و ترکیب غذاها', 'پیشنهادهای قابل بررسی برای منو'],
+      ['پیش‌بینی تقاضا', 'پیش‌بینی تقاضای ثبت‌شده'],
+      ['تحلیل تأخیر آشپزخانه', 'گلوگاه‌های ثبت‌شده آشپزخانه'],
+    ]) {
+      await page.getByRole('button', { name: button, exact: true }).click();
+      await expect(
+        page.getByRole('heading', { name: title, exact: true }),
+      ).toBeVisible();
+      if (button === 'تحلیل فروش و روندها')
+        await page.screenshot({
+          path: 'test-results/manager-assistant-result.png',
+          fullPage: true,
+        });
+      if (button === 'پیش‌بینی تقاضا')
+        await expect(
+          page.getByText('برای پیش‌بینی حداقل ۵۶ روز سابقه', { exact: false }),
+        ).toBeVisible();
+    }
+    await expect(
+      page.getByRole('table', {
+        name: 'عقب‌ماندگی فعلی — مستقل از بازه گزارش',
+      }),
+    ).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: 'test-results/operations-analytics-mobile.png',
+      fullPage: true,
+    });
   } finally {
     await context.close();
   }

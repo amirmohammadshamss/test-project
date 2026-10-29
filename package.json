@@ -26,7 +26,6 @@
     "demo:up": "node scripts/demo-up.mjs",
     "test:browser": "nx run workspace:test-browser",
     "notifications:keys": "node scripts/generate-notification-keys.mjs",
-    "ai:evaluate": "node --env-file-if-exists=.env --import tsx scripts/evaluate-menu-ai.ts",
     "ai:evaluate-manager": "node --env-file-if-exists=.env --import tsx scripts/evaluate-manager-ai.ts"
   },
   "dependencies": {

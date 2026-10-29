@@ -1,3 +1,4 @@
+import { operationalReport } from './operations';
 import type { PrismaClient } from '@prisma/client';
 import type {
   AnalysisResult,
@@ -96,8 +97,17 @@ export async function executeManagerReport(
           ...result,
           title: 'این پرسش پشتیبانی نمی‌شود',
           explanation:
-            'درباره پرفروش‌ترین غذاها، ارزش سفارش‌های تکمیل‌شده یا لغوها در امروز، هفت روز اخیر، این هفته یا هفته قبل بپرسید.',
+            'درباره فروش، پیشنهاد منو، تقاضای آینده، تأخیر آشپزخانه یا لغوها در بازه‌های پشتیبانی‌شده بپرسید.',
         };
+      if (
+        [
+          'SALES_TRENDS',
+          'MENU_SUGGESTIONS',
+          'DEMAND_FORECAST',
+          'KITCHEN_DELAYS',
+        ].includes(plan.tool)
+      )
+        return operationalReport(tx, scope, plan, window, result, anchor);
       if (plan.tool === 'TOP_SELLERS') {
         const rows = await tx.$queryRaw<
           { name: string; quantity: string; valueRial: string }[]

@@ -468,3 +468,27 @@ See [MANAGER_ASSISTANT.md](MANAGER_ASSISTANT.md). Voice, images/PDFs and forecas
 - [x] Consolidate the Persian owner handover and current deployment documentation.
 - [x] Verify the release and prepare all authorized changes for the requested commit.
 - [ ] Close externally dependent deployment/provider/recording gates in [ASSESSMENT_FIXES.md](ASSESSMENT_FIXES.md).
+
+## Subsequent requested operational analytics
+
+- [x] Sales trends, item comparison and Persian manager interface.
+- [x] Evidence-based menu review and co-ordered combinations with minimum support.
+- [x] Daily/hourly demand baselines, minimum history, rolling-origin comparison and explicit uncertainty limitations.
+- [x] Transactional item timing and kitchen-delay analysis without invented legacy timestamps.
+- [x] Scoped direct reports independent of AI and strict AI tool routing.
+- [x] PostgreSQL security/lifecycle checks and mobile Chromium report workflow.
+- [ ] Independent real-restaurant forecast evaluation and holiday/opening-hours data.
+- [ ] Production deployment of this expansion.
+
+See [OPERATIONAL_ANALYTICS.md](OPERATIONAL_ANALYTICS.md).
+
+## Owner-requested menu assistant removal
+
+- [x] Removed menu drafting from both staff workspace and manager navigation.
+- [x] Removed menu-draft creation/history/approval API registration and implementation.
+- [x] Stopped registering the menu-processing runtime; manager reporting and notifications remain active.
+- [x] Redirected legacy menu-assistant links to manual menu management.
+- [x] Removed menu evaluation from package commands, updated smoke to manager analysis, and stopped creating demo menu drafts.
+- [x] Preserved historical database records without a destructive migration; retired drafts no longer consume manager analysis quota.
+
+Earlier menu-assistant scope/checklists are historical and superseded by this request.

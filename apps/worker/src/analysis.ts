@@ -285,6 +285,14 @@ export class AnalysisWorkerRuntime implements OnModuleInit, OnModuleDestroy {
   private dispatch() {
     if (!this.running)
       this.running = reconcileAnalyses(this.db, this.queue)
+        .then(async () => {
+          const client = await this.queue.client;
+          await client.set(
+            'restaurantos:worker:heartbeat',
+            new Date().toISOString(),
+            { EX: 20 },
+          );
+        })
         .catch(() => this.log('ANALYSIS_DISPATCH_DEFERRED'))
         .finally(() => {
           this.running = undefined;

@@ -169,28 +169,6 @@ export async function seedDemoHistory(
         });
       });
     }
-    const draftId = uuid(tenantId + ':draft');
-    await db.aiDraft.upsert({
-      where: { id: draftId },
-      update: {},
-      create: {
-        id: draftId,
-        tenantId,
-        actorId: actor.userId,
-        input:
-          'نمونه ثابت نمایشی برای تمرین تأیید؛ از مدل هوش مصنوعی دریافت نشده است.',
-        status: 'READY',
-        provider: 'demo-fixture',
-        model: 'not-live-inference',
-        result: {
-          name: 'نمونه نمایشی — چلوکباب کوبیده',
-          description:
-            'نمونه ثابت برای تمرین بررسی قیمت؛ خروجی زنده هوش مصنوعی نیست.',
-          category: 'غذاهای ایرانی',
-          priceToman: 380000,
-        },
-      },
-    });
     const start = new Date(now.getTime() - 7 * 86400000);
     const rows = await db.$queryRaw<
       { count: string; value: string }[]
@@ -240,13 +218,13 @@ export async function seedDemoHistory(
     for (const member of recipients) {
       const type =
         member.role === 'MANAGER'
-          ? 'AI_READY'
+          ? 'ANALYSIS_READY'
           : member.role === 'KITCHEN'
             ? 'NEW_ORDER'
             : 'ITEM_READY';
       const entityId =
         member.role === 'MANAGER'
-          ? draftId
+          ? analysisId
           : uuid(`${tenantId}:active:${member.role === 'KITCHEN' ? 1 : 4}`);
       if (
         member.role !== 'MANAGER' &&
@@ -291,11 +269,11 @@ export async function seedDemoHistory(
             title:
               'نمونه نمایشی — ' +
               (member.role === 'MANAGER'
-                ? 'پیش‌نویس آماده بررسی'
+                ? 'گزارش آماده بررسی'
                 : 'هماهنگی سالن و آشپزخانه'),
             message:
               'اعلان ساختگی برای آشنایی با محیط؛ هیچ مدل یا دستگاه Push فراخوانی نشده است.',
-            entityType: member.role === 'MANAGER' ? 'ai-draft' : 'order',
+            entityType: member.role === 'MANAGER' ? 'ai-analysis' : 'order',
             entityId,
             eventId,
             expiresAt: new Date(now.getTime() + 30 * 86400000),

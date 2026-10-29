@@ -1,3 +1,5 @@
+> Current product update: the owner removed the menu assistant. Menu-draft APIs/UI and its production queue are retired. AvalAI is used for the restricted manager report planner. Older menu-extraction plans and evaluation notes below are historical; they do not describe an active product feature.
+
 # AI integration — agreed implementation scope
 
 This user-requested expansion completes the Phase 1 text-menu workflow. AI produces one editable menu draft per request; only an authenticated manager can publish it through the existing transactional approval operation. Manual menu creation remains available. Images/PDFs, batch extraction, voice ordering, forecasting and platform analysis remain later phases. A bounded read-only manager assistant was subsequently added; see MANAGER_ASSISTANT.md.
@@ -65,3 +67,7 @@ AvalAI is supported with `AI_PROVIDER=avalai`, `AVALAI_API_KEY` and optional `AV
 A single live Persian menu extraction returned a schema-valid draft and the correct 380,000-toman price using 301 input and 38 output tokens. Its kebab category was unsuitable because the current menu schema has a limited category vocabulary. This is connectivity evidence, not a quality benchmark; review and edit drafts before approval. No menu item was published by this probe. Existing timeout, bounded response/output tokens, retry classification, input validation and strict result validation remain enforced. Evaluation scripts accept AvalAI and require explicit cost opt-in.
 
 The supplied key is configured locally only. Production SSH/HTTPS remained unreachable during this change, so the remote worker is still on the earlier release with AI disabled. Deploy the updated worker and Compose configuration, then set the server secret and recreate the worker when host access returns. No remote activation is claimed.
+
+## Operational analytics expansion
+
+Four additional read-only tools and direct manager reports now cover sales trends, evidence-based menu suggestions, statistical demand forecasts and measured kitchen delays. See [OPERATIONAL_ANALYTICS.md](OPERATIONAL_ANALYTICS.md) for methods, thresholds and limitations. AI selects a report; numerical forecasting and menu rules do not depend on model output. The existing earlier roadmap remains historical rather than evidence of what was previously shipped.

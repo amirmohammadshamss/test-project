@@ -250,7 +250,7 @@ test('durable analysis retries through Redis, scopes facts, emits one private co
       await call('post', '/ai/analyses').send(input).expect(429);
       await call('post', '/ai/menu-drafts')
         .send({ input: 'کباب ۳۸۰ هزار تومان' })
-        .expect(429);
+        .expect(404);
       await call('post', '/ai/analyses', 'MANAGER', key)
         .send(input)
         .expect(201);

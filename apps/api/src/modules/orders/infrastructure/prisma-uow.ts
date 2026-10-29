@@ -10,6 +10,7 @@ import {
   RequestIdentity,
 } from '../application/ports';
 import { audit } from '../../../common/infrastructure/audit';
+import { RealtimeEventPublisher } from '../../../common/application/realtime';
 import { BusinessError } from '../domain/rules';
 export function fingerprint(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -60,16 +61,22 @@ export async function idempotent<T>(
   );
 }
 export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
-  constructor(private readonly db: PrismaClient) {
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly events?: RealtimeEventPublisher,
+  ) {
     super();
   }
-  run(
+  async run(
     actor: Actor,
     request: RequestIdentity,
     work: (tx: OrderTransaction) => Promise<OrderView>,
   ) {
     const scoped = { tenantId: actor.tenantId, branchId: actor.branchId };
-    return idempotent(this.db, actor, request, async (db) => {
+    let changed = false,
+      created = false;
+    let changedItemId: string | undefined;
+    const result = await idempotent(this.db, actor, request, async (db) => {
       const read = async (id: string) => {
         const order = await db.order.findFirst({
           where: { ...scoped, id },
@@ -80,6 +87,8 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
       };
       return work({
         cancel: async (order, reason, item) => {
+          changed = true;
+          changedItemId = item?.id;
           const now = new Date();
           const targets = item
             ? [item]
@@ -160,6 +169,8 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
             include: { items: true },
           }),
         createOrder: async (tableId) => {
+          changed = true;
+          created = true;
           const order = await db.order.create({
             data: { ...scoped, tableId },
             include: { items: true },
@@ -192,7 +203,7 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
           return menu;
         },
         append: async (order, menu, count) => {
-          await db.orderItem.create({
+          const added = await db.orderItem.create({
             data: {
               ...scoped,
               orderId: order.id,
@@ -202,8 +213,10 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
               quantity: count,
             },
           });
+          changedItemId = added.id;
         },
         updateItem: async (item, change) => {
+          changedItemId = item.id;
           const updated = await db.orderItem.updateMany({
             where: { ...scoped, id: item.id, version: item.version },
             data: { ...change, version: { increment: 1 } },
@@ -211,6 +224,7 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
           if (!updated.count) throw new BusinessError('VERSION_CONFLICT');
         },
         touch: async (order, action, complete) => {
+          changed = true;
           await db.order.update({
             where: { tenantId_branchId_id: { ...scoped, id: order.id } },
             data: {
@@ -232,5 +246,39 @@ export class PrismaOrderUnitOfWork extends OrderUnitOfWork {
         },
       });
     });
+    if (changed && this.events) {
+      const item = result.items.find((i) => i.id === changedItemId);
+      void Promise.resolve()
+        .then(() =>
+          this.events!.publishOrderChanged({
+            tenantId: actor.tenantId,
+            branchId: actor.branchId,
+            orderId: result.id,
+            tableId: result.tableId,
+            version: result.version,
+            created,
+            ...(item
+              ? {
+                  item: {
+                    id: item.id,
+                    version: item.version,
+                    status: item.status,
+                  },
+                }
+              : {}),
+          }),
+        )
+        .catch(() =>
+          console.error(
+            JSON.stringify({
+              level: 'warn',
+              module: 'realtime',
+              errorCode: 'NOTIFICATION_FAILED',
+              requestId: actor.requestId,
+            }),
+          ),
+        );
+    }
+    return result;
   }
 }

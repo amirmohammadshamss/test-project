@@ -156,3 +156,7 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md), [HANDOVER.md](./HANDOVER.md), [DECISIONS.m
 ## Recovery verification and assessment status
 
 See [ASSESSMENT_FIX_PLAN.md](./ASSESSMENT_FIX_PLAN.md) and [REMEDIATION_STATUS.md](./REMEDIATION_STATUS.md). Browser tests require a dedicated `TEST_DATABASE_URL` ending in `/restaurantos_test`, migrated schema, generated Prisma client and Chromium (`pnpm exec playwright install chromium`). `pnpm test:browser` builds API/web and starts isolated test servers on 4002/3002; do not run another server on those ports. It creates fictional fixtures in the test database. Kitchen pagination returns an envelope, default 50/max 100 orders, with explicit backlog navigation and stale-data indicators.
+
+## Real-time staff coordination
+
+[REALTIME.md](./REALTIME.md) records the subsequent Socket.IO expansion. Order commands remain REST transactions; authorized staff receive versioned post-commit invalidations and refetch state. Reconnection always refetches and five-second polling covers missed notifications. Local Next routing uses Socket.IO long-polling fallback; Caddy is configured to forward real WebSocket upgrades directly to Nest under HTTPS, but that deployment path is not yet verified. Super Admin continues polling. Keep a single API instance until fan-out, revocation coordination and polling affinity are implemented.

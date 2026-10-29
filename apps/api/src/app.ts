@@ -15,6 +15,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { MenuModule } from './modules/menu/menu.module';
 import { PlatformAdminModule } from './modules/platform-admin/platform.module';
 import { RestaurantAdminModule } from './modules/restaurant-admin/admin.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 import { AiModule } from './modules/ai/ai.module';
 @Controller('health')
 class HealthController {
@@ -54,6 +55,7 @@ class HealthController {
       },
     }),
     SecurityModule,
+    RealtimeModule,
     AuthModule,
     OrdersModule,
     MenuModule,

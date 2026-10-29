@@ -16,6 +16,10 @@ The original assessment review identified recovery, kitchen visibility, restaura
 
 The new estimate is **11–19 additional active hours**, separate from the original six-hour cap. Do not reset that cap or conceal unknown/overrun time. Start with policy/provider/deployment feasibility, then cancellation, kitchen visibility and sessions; finish with browser/live-AI/HTTPS evidence and submission documents.
 
+## Requested real-time expansion
+
+Follow [REALTIME.md](./REALTIME.md) for the implemented REST + Socket.IO notification design, contracts, security, recovery, tests and remaining transport/scaling gates. This is later requested scope, separate from the original assessment timebox and original WebSocket exclusion. Post-commit invalidations accelerate staff/admin REST refresh; polling remains a safety net. Public HTTPS/Caddy upgrades, multi-instance fan-out and an outbox are not silently claimed complete.
+
 ## Execution status
 
 - [x] Phases 1–4: original scope, workspace/database, authentication/isolation, and core ordering/kitchen API implemented; critical automated checks pass.

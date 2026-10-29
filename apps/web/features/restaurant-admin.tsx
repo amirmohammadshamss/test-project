@@ -1,7 +1,8 @@
 'use client';
+import { useRestaurantRealtime } from '../lib/realtime';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { api, ApiError, errors, localDate, money, number } from '../lib/api';
 
@@ -243,8 +244,10 @@ export default function RestaurantAdminPanel() {
     setError('');
     setSnapshot(null);
   }, [pathname]);
+  const refreshSequence = useRef(0);
   const load = useCallback(async () => {
     if (!me) return;
+    const sequence = ++refreshSequence.current;
     let value: unknown;
     const query = new URLSearchParams({
       page: String(page),
@@ -267,6 +270,7 @@ export default function RestaurantAdminPanel() {
       api<Page<Menu>>('/admin/menu/items?pageSize=100'),
     ]);
     return {
+      sequence,
       path: pathname,
       value,
       categories: nextCategories,
@@ -274,7 +278,7 @@ export default function RestaurantAdminPanel() {
     };
   }, [me, page, search, status, section, pathname]);
   const apply = useCallback((next: Awaited<ReturnType<typeof load>>) => {
-    if (!next) return;
+    if (!next || next.sequence !== refreshSequence.current) return;
     setSnapshot({ path: next.path, value: next.value });
     setCategories(next.categories);
     setMenu(next.menu);
@@ -301,6 +305,18 @@ export default function RestaurantAdminPanel() {
       clearInterval(timer);
     };
   }, [load, apply]);
+  const realtimeConnected = useRestaurantRealtime(
+    me ? JSON.stringify(me) : undefined,
+    () => {
+      void load()
+        .then(apply)
+        .catch((e) => {
+          if (e instanceof ApiError && (e.status === 401 || e.status === 403))
+            window.location.assign('/');
+          else setError('ارتباط زنده قطع شد؛ اطلاعات را دوباره دریافت کنید.');
+        });
+    },
+  );
   useEffect(() => {
     if (!draft || !['PENDING', 'PROCESSING'].includes(draft.status)) return;
     let active = true;
@@ -487,6 +503,11 @@ export default function RestaurantAdminPanel() {
           ))}
         </nav>
         <main className="min-w-0">
+          <p role="status" className="mb-3 text-xs text-slate-600">
+            {realtimeConnected
+              ? 'ارتباط زنده برقرار است'
+              : 'ارتباط زنده قطع است؛ تازه‌سازی دوره‌ای فعال است'}
+          </p>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1>{title}</h1>

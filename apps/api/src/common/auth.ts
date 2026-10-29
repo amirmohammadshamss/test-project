@@ -23,10 +23,9 @@ export interface AuthRequest extends Request {
 }
 export const Roles = (...roles: Role[]) => SetMetadata('roles', roles);
 @Injectable()
-export class SessionGuard implements CanActivate {
+export class RestaurantSessionAuthenticator {
   constructor(@Inject(JwtService) private readonly jwt: JwtService) {}
-  async canActivate(context: ExecutionContext) {
-    const req = context.switchToHttp().getRequest<AuthRequest>();
+  async authenticate(token: string): Promise<Actor> {
     let claims: {
       sub: string;
       membershipId: string;
@@ -34,7 +33,7 @@ export class SessionGuard implements CanActivate {
       sid: string;
     };
     try {
-      claims = await this.jwt.verifyAsync(req.cookies?.session || '', {
+      claims = await this.jwt.verifyAsync(token, {
         audience: 'restaurantos-restaurant',
       });
       if (
@@ -76,12 +75,25 @@ export class SessionGuard implements CanActivate {
     if (!membership) throw new UnauthorizedException('AUTH_REQUIRED');
     if (membership.restaurant.status !== 'ACTIVE')
       throw new ForbiddenException('TENANT_SUSPENDED');
-    req.actor = {
+    return {
       sessionId: claims.sid,
       userId: claims.sub,
       tenantId: membership.tenantId,
       branchId: claims.branchId,
       role: membership.role,
+    };
+  }
+}
+@Injectable()
+export class SessionGuard implements CanActivate {
+  constructor(
+    @Inject(RestaurantSessionAuthenticator)
+    private readonly auth: RestaurantSessionAuthenticator,
+  ) {}
+  async canActivate(context: ExecutionContext) {
+    const req = context.switchToHttp().getRequest<AuthRequest>();
+    req.actor = {
+      ...(await this.auth.authenticate(req.cookies?.session || '')),
       requestId: req.requestId,
     };
     return true;

@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { io } from 'socket.io-client';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { hashPassword } from '../packages/database/src/password';
@@ -66,6 +67,28 @@ test('independent waiter/kitchen sessions recover an accidental table and finish
       k = await kitchen.newPage();
     await login(w, 'WAITER');
     await login(k, 'KITCHEN');
+    await expect(w.locator('[data-realtime-state=connected]')).toBeVisible();
+    await expect(k.locator('[data-realtime-state=connected]')).toBeVisible();
+    const relayOrigin = new URL(w.url()).origin;
+    const relayCookie = (await waiter.cookies())
+      .map((c) => c.name + '=' + c.value)
+      .join('; ');
+    const relay = io(relayOrigin, {
+      transports: ['polling'],
+      reconnection: false,
+      forceNew: true,
+      timeout: 5000,
+      extraHeaders: { Cookie: relayCookie, Origin: relayOrigin },
+    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        relay.once('connect', () => resolve());
+        relay.once('connect_error', reject);
+      });
+    } finally {
+      relay.disconnect();
+    }
+
     expect((await w.request.get('/api/v1/PLATFORM/auth/me')).status()).toBe(
       404,
     );
@@ -86,16 +109,16 @@ test('independent waiter/kitchen sessions recover an accidental table and finish
       .locator('[data-ui="food-card"]')
       .filter({ hasText: 'لیموناد آزمون' });
     await food.getByRole('button').click();
-    await expect(
-      k.getByRole('heading', { name: /لیموناد آزمون/ }),
-    ).toBeVisible();
+    await expect(k.getByRole('heading', { name: /لیموناد آزمون/ })).toBeVisible(
+      { timeout: 2500 },
+    );
     await k
       .getByRole('button', { name: 'شروع آماده‌سازی', exact: true })
       .click();
     await k.getByRole('button', { name: 'آماده سرو است', exact: true }).click();
     await w
       .getByRole('button', { name: 'تحویل به مهمان', exact: true })
-      .click();
+      .click({ timeout: 2500 });
     await w
       .getByRole('button', { name: 'تکمیل سفارش و آزاد کردن میز' })
       .click();
@@ -201,4 +224,83 @@ test('offline kitchen preserves last work and clearly marks it stale', async ({
   await expect(
     page.getByText('اطلاعات قدیمی است؛ ارتباط قطع شده', { exact: false }),
   ).not.toBeVisible({ timeout: 15000 });
+});
+
+test('reconnection refetches missed state and socket failure leaves REST commands usable', async ({
+  page,
+  context,
+}) => {
+  const table = await db.restaurantTable.create({
+    data: { tenantId, branchId, number: 9 },
+  });
+  await login(page, 'WAITER');
+  await expect(page.locator('[data-realtime-state=connected]')).toBeVisible();
+  await context.setOffline(true);
+  await expect(page.locator('[data-realtime-state=disconnected]')).toBeVisible({
+    timeout: 15000,
+  });
+  const order = await db.order.create({
+    data: { tenantId, branchId, tableId: table.id },
+  });
+  await context.setOffline(false);
+  await expect(page.locator('[data-realtime-state=connected]')).toBeVisible({
+    timeout: 15000,
+  });
+  const card = page
+    .getByRole('button')
+    .filter({ has: page.getByRole('heading', { name: 'میز ۹', exact: true }) });
+  await expect(card).toContainText('در حال سرویس');
+  await context.route('**/socket.io/**', (route) => route.abort());
+  await page.reload();
+  await expect(
+    page.locator('[data-realtime-state=disconnected]'),
+  ).toBeVisible();
+  await page
+    .getByRole('button')
+    .filter({ has: page.getByRole('heading', { name: 'میز ۹', exact: true }) })
+    .click();
+  await page.getByRole('button', { name: 'لغو سفارش و آزاد کردن میز' }).click();
+  await page.getByLabel('دلیل لغو').fill('REST fallback');
+  await page.getByRole('button', { name: 'تأیید لغو', exact: true }).click();
+  await expect(page.getByText('لغو ثبت شد؛', { exact: false })).toBeVisible();
+  expect(
+    (await db.order.findUniqueOrThrow({ where: { id: order.id } })).status,
+  ).toBe('CANCELLED');
+});
+
+test('manager dashboard refetches immediately when another staff session opens a table', async ({
+  browser,
+}) => {
+  await db.restaurantTable.create({ data: { tenantId, branchId, number: 10 } });
+  const expected =
+    (await db.order.count({ where: { tenantId, branchId, status: 'OPEN' } })) +
+    1;
+  const manager = await browser.newContext(),
+    waiter = await browser.newContext();
+  try {
+    const m = await manager.newPage(),
+      w = await waiter.newPage();
+    await login(m, 'MANAGER');
+    await m.goto('/dashboard');
+    await expect(
+      m.getByText('ارتباط زنده برقرار است', { exact: true }),
+    ).toBeVisible();
+    await login(w, 'WAITER');
+    await expect(w.locator('[data-realtime-state=connected]')).toBeVisible();
+    await w
+      .getByRole('button')
+      .filter({ has: w.getByRole('heading', { name: 'میز ۱۰', exact: true }) })
+      .click();
+    await expect(
+      m
+        .getByText('سفارش‌های باز', { exact: true })
+        .locator('..')
+        .locator('strong'),
+    ).toHaveText(new Intl.NumberFormat('fa-IR').format(expected), {
+      timeout: 2500,
+    });
+  } finally {
+    await manager.close();
+    await waiter.close();
+  }
 });

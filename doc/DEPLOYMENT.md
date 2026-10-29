@@ -55,3 +55,9 @@ The default public HTTPS configuration now serves only the restaurant hostname a
 Restaurant tokens issued before the persisted-session change require fresh login. Logout now revokes the current restaurant session; expiry, active membership and suspension checks remain server-side. Database validation failures fail closed.
 
 AI eligibility must be verified for the actual service/customer location; moving the worker abroad is not sufficient proof. Current OpenAI guidance does not list Iran. No live key/provider acceptance or workaround is claimed.
+
+## Socket.IO transport routing
+
+The later real-time expansion adds `/socket.io/*` routing directly to the API in Caddy before the general Next proxy. The host must preserve the exact browser origin and support WebSocket upgrades; origin/session checks are enforced in Nest. Local Next route handlers relay polling only, using the existing runtime API address and cookie header. Do not point Socket.IO at a build-time Docker-only address in browser code. Keep proxy idle timeouts above the Socket.IO heartbeat window.
+
+Run one API instance for this version. Multiple instances require committed-change fan-out, local recipient reauthorization, revocation propagation and polling session affinity; installing Redis broadcasting alone is insufficient with the current local-recipient publisher. HTTPS/Caddy upgrade and multi-instance behavior remain unverified. See REALTIME.md.

@@ -1,8 +1,10 @@
 import {
   Injectable,
+  Inject,
   UnauthorizedException,
   ForbiddenException,
 } from '@nestjs/common';
+import { RealtimeEventPublisher } from '../../common/application/realtime';
 import { prisma } from '../../../../../packages/database/src/client';
 import {
   hashPassword,
@@ -12,6 +14,10 @@ import type { Actor } from '../../../../../packages/shared/src/contracts';
 const dummyHash = hashPassword('invalid-user-timing-placeholder');
 @Injectable()
 export class AuthService {
+  constructor(
+    @Inject(RealtimeEventPublisher)
+    private readonly events: RealtimeEventPublisher,
+  ) {}
   async authenticate(email: string, password: string) {
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
@@ -59,11 +65,13 @@ export class AuthService {
     };
   }
   async revoke(claims: { sid?: string; sub?: string } | null) {
-    if (claims?.sid && claims.sub)
+    if (claims?.sid && claims.sub) {
       await prisma.restaurantSession.updateMany({
         where: { id: claims.sid, userId: claims.sub, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      this.events.disconnectSession(claims.sid);
+    }
   }
   async me(actor: Actor) {
     const [user, restaurant, branch] = await Promise.all([

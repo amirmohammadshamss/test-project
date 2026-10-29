@@ -28,3 +28,9 @@ Added separate Restaurant Admin and platform modules over the existing modular m
 **Revisited omission — no cancellation:** originally limited the state machine to keep scope small. That was wrong for a shift workflow: a mistaken empty order held a table indefinitely. The correction preserves history and constrains authority instead of adding financial features.
 
 **Revisited sequencing — broad administration before shift proof:** platform features were later requested and remain useful follow-on work, but they did not resolve recovery or provide browser/deployment evidence. For this assessment, proving the narrow staff workflow should have preceded additional platform breadth. This is the current retrospective assessment, not an invented record of the original author's thoughts.
+
+## Later Socket.IO expansion
+
+**Decision:** add best-effort post-commit Socket.IO invalidations while retaining REST mutations and polling recovery. **Reason:** improve staff coordination without changing concurrency/idempotency authority. **Alternative:** polling alone, socket mutation commands, or a transactional outbox immediately. **Trade-off:** a commit-to-publication crash can lose a notification; regular/refetch-on-reconnect REST synchronization repairs state. Domain/application code contains no Socket.IO dependencies.
+
+**Decision:** revalidate local recipients before delivery rather than blindly broadcast to previously joined rooms. **Reason:** session/membership/tenant permissions can change after connection. **Alternative:** handshake-only authorization. **Trade-off:** additional database reads and a deliberately single-instance adapter; future Redis fan-out must preserve local reauthorization and cannot be enabled as a drop-in scaling claim. See REALTIME.md.

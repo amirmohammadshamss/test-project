@@ -1,8 +1,12 @@
 import { Global, Module } from '@nestjs/common';
-import { RoleGuard, SessionGuard } from './auth';
+import {
+  RoleGuard,
+  SessionGuard,
+  RestaurantSessionAuthenticator,
+} from './auth';
 @Global()
 @Module({
-  providers: [RoleGuard, SessionGuard],
-  exports: [RoleGuard, SessionGuard],
+  providers: [RoleGuard, SessionGuard, RestaurantSessionAuthenticator],
+  exports: [RoleGuard, SessionGuard, RestaurantSessionAuthenticator],
 })
 export class SecurityModule {}

@@ -1,4 +1,5 @@
 'use client';
+import { useRestaurantRealtime } from '../lib/realtime';
 import { ui } from '../lib/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
@@ -191,6 +192,7 @@ export default function RestaurantApp() {
   const [editor, setEditor] = useState<Menu | 'new' | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const scope = `${me?.userId || ''}:${me?.tenantId || ''}:${me?.branchId || ''}:${view}:${selected || ''}:${kitchenCursor}`;
+  const refreshSequence = useRef(0);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   useEffect(() => {
@@ -201,6 +203,7 @@ export default function RestaurantApp() {
   useEffect(() => setCancelTarget(null), [selected]);
   const refresh = useCallback(async () => {
     if (!me) return;
+    const sequence = ++refreshSequence.current;
     const [nextMenu, nextCategories, nextOrders, nextTables, nextOrder] =
       await Promise.all([
         api<Menu[]>('/menu/items'),
@@ -217,6 +220,7 @@ export default function RestaurantApp() {
         selected ? api<Order>(`/orders/${selected}`) : Promise.resolve(null),
       ]);
     return {
+      sequence,
       nextMenu,
       nextCategories,
       nextOrders: Array.isArray(nextOrders) ? nextOrders : nextOrders.items,
@@ -227,7 +231,12 @@ export default function RestaurantApp() {
     };
   }, [me, view, selected, scope, kitchenCursor]);
   const apply = useCallback((data: Awaited<ReturnType<typeof refresh>>) => {
-    if (!data || data.scope !== scopeRef.current) return;
+    if (
+      !data ||
+      data.scope !== scopeRef.current ||
+      data.sequence !== refreshSequence.current
+    )
+      return;
     setMenu(data.nextMenu);
     setCategories(data.nextCategories);
     setOrders(data.nextOrders);
@@ -268,7 +277,7 @@ export default function RestaurantApp() {
       } catch (e) {
         if (!active) return;
         setOnline(false);
-        if (e instanceof ApiError && e.status === 401) {
+        if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
           setMe(null);
           setError('نشست شما تمام شده است. دوباره وارد شوید.');
         }
@@ -283,6 +292,20 @@ export default function RestaurantApp() {
       clearInterval(timer);
     };
   }, [refresh, apply]);
+  const realtimeConnected = useRestaurantRealtime(
+    me
+      ? `${me.userId}:${me.tenantId}:${me.branchId}:${me.sessionId}`
+      : undefined,
+    () => {
+      void refresh()
+        .then(apply)
+        .catch((e) => {
+          setOnline(false);
+          if (e instanceof ApiError && (e.status === 401 || e.status === 403))
+            setMe(null);
+        });
+    },
+  );
   async function act<T>(
     action: () => Promise<T>,
     success?: (value: T) => void,
@@ -586,6 +609,17 @@ export default function RestaurantApp() {
       </aside>
       <main {...ui('main')}>
         <header {...ui('topbar')}>
+          <span
+            role="status"
+            data-realtime-state={
+              realtimeConnected ? 'connected' : 'disconnected'
+            }
+            className="max-w-40 text-[10px] text-slate-600"
+          >
+            {realtimeConnected
+              ? 'ارتباط زنده برقرار است'
+              : 'ارتباط زنده قطع است؛ تازه‌سازی دوره‌ای فعال است'}
+          </span>
           {me.role === 'MANAGER' && (
             <a
               href="/dashboard"
@@ -870,6 +904,11 @@ export default function RestaurantApp() {
               <div {...ui('section-footnote')}>
                 <Icon name="clock" size={16} />
                 آخرین تغییرات سالن به‌صورت خودکار دریافت می‌شود.
+                <span role="status">
+                  {realtimeConnected
+                    ? 'ارتباط زنده برقرار است'
+                    : 'ارتباط زنده قطع است؛ تازه‌سازی دوره‌ای فعال است'}
+                </span>
               </div>
             </>
           )}
@@ -1247,6 +1286,11 @@ export default function RestaurantApp() {
                   {!online ? ' — اطلاعات قدیمی است؛ ارتباط قطع شده' : ''}
                 </span>
               </div>
+              <p role="status" className="col-span-full text-xs text-slate-600">
+                {realtimeConnected
+                  ? 'ارتباط زنده برقرار است'
+                  : 'ارتباط زنده قطع است؛ تازه‌سازی دوره‌ای فعال است'}
+              </p>
               {(['PENDING', 'PREPARING', 'READY'] as const).map((status) => {
                 const items = orders.flatMap((o) =>
                   o.items

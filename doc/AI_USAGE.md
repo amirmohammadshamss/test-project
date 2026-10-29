@@ -47,3 +47,9 @@ Codex researched official PostgreSQL, OWASP, Playwright, Docker and provider-eli
 The user supplied the assessment and explicitly requested Nx, Tailwind, admin scope and remediation. Codex proposed the cancellation/locking/session policies and generated their implementation; the record does not establish that those architecture details were independently authored by the human. No human interview, measured AI time saving or live-provider success is invented.
 
 Rejected simply increasing/removing the kitchen limit: explicit bounded navigation and a visible total address discoverability without unbounded polling. Rejected treating a foreign deployment region as sufficient proof an AI provider may serve Iranian users. Legitimate provider eligibility, a server credential, live quality and cost evaluation remain open.
+
+## Real-time implementation assistance
+
+The user supplied the REST/Socket.IO/PostgreSQL proposal. Codex consulted primary NestJS/Socket.IO documentation and implemented the gateway, shared auth, post-commit port, UI listeners, transport relay and tests. The design uses connection middleware rather than relying on async `handleConnection` to gate messages. Next's route relay is explicitly polling-only; Caddy upgrade forwarding is configuration, not a verified deployment. A generated idle-revocation test initially timed out sooner than the specified five-second sweep; its timeout was corrected instead of weakening authorization behavior. No durable delivery or multi-instance capability is claimed.
+
+The final live transport smoke caught a Next trailing-slash redirect tolerated by browsers but rejected by the standard Node polling client. Preserving the endpoint URL fixed it; both browser and Node relay connections were verified afterwards.
